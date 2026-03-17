@@ -1,0 +1,55 @@
+/* Footer giống hình 2 */
+
+footer {
+  background-color: #2d402e; /* primary */
+  color: #ffffff;
+  border-top: 4px solid #b38b4d; /* gold */
+}
+
+footer h2,
+footer h4 {
+  color: #ffffff;
+}
+
+footer p,
+footer li a {
+  color: rgba(255, 255, 255, 0.7); /* text trắng nhạt */
+}
+
+footer li a:hover {
+  color: #ffffff;
+}
+
+/* ô Email + nút Đăng ký ngay */
+footer input[type="email"] {
+  background-color: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 0.75rem;
+  padding: 0.625rem 1rem;
+  font-size: 0.875rem;
+  color: #ffffff;
+  outline: none;
+}
+
+footer input[type="email"]::placeholder {
+  color: rgba(255, 255, 255, 0.6);
+}
+
+footer button {
+  background-color: #6b4428; /* accent */
+  color: #ffffff;
+  border-radius: 0.75rem;
+  padding: 0.625rem 1rem;
+  font-weight: 700;
+  font-size: 0.875rem;
+}
+
+footer button:hover {
+  background-color: #5b3a22;
+}
+
+/* hàng chữ cuối cùng nhạt hơn */
+footer > div:last-child {
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 0.75rem;
+}

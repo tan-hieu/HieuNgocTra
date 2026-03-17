@@ -1,0 +1,96 @@
+body:not(.scrolled) #site-header {
+  background-image: linear-gradient(to bottom, rgba(0, 0, 0, 0.4), transparent);
+  padding-top: 1.25rem;
+  padding-bottom: 1.25rem;
+  border-bottom: none;
+  box-shadow: none;
+  backdrop-filter: none;
+}
+
+body.scrolled #site-header {
+  background-color: rgba(242, 235, 220, 0.95);
+  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(12px);
+  padding-top: 0.75rem;
+  padding-bottom: 0.75rem;
+  box-shadow: 0 10px 25px rgba(15, 23, 42, 0.1);
+  border-bottom: 1px solid rgba(45, 64, 46, 0.05);
+}
+
+body:not(.scrolled) .logo-title {
+  color: #ffffff;
+}
+body.scrolled .logo-title {
+  color: #2d402e;
+}
+body:not(.scrolled) .logo-icon {
+  color: #ffffff;
+}
+body.scrolled .logo-icon {
+  color: #2d402e;
+}
+body:not(.scrolled) .nav-link {
+  color: #ffffff;
+}
+body.scrolled .nav-link {
+  color: #2d402e;
+}
+
+body:not(.scrolled) .search-container {
+  background-color: rgba(255, 255, 255, 0.1);
+  border-color: rgba(255, 255, 255, 0.2);
+  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(8px);
+}
+body.scrolled .search-container {
+  background-color: rgba(45, 64, 46, 0.05);
+  border-color: rgba(45, 64, 46, 0.1);
+}
+body:not(.scrolled) .search-icon {
+  color: rgba(255, 255, 255, 0.6);
+}
+body.scrolled .search-icon {
+  color: rgba(45, 64, 46, 0.6);
+}
+body:not(.scrolled) .search-input {
+  color: #ffffff;
+}
+body.scrolled .search-input {
+  color: #2d402e;
+}
+body:not(.scrolled) .search-input::placeholder {
+  color: rgba(255, 255, 255, 0.5);
+}
+body.scrolled .search-input::placeholder {
+  color: rgba(45, 64, 46, 0.5);
+}
+
+body:not(.scrolled) .cart-button {
+  color: #ffffff;
+}
+body.scrolled .cart-button {
+  color: #2d402e;
+}
+body:not(.scrolled) .cart-button:hover {
+  background-color: rgba(255, 255, 255, 0.1);
+}
+body.scrolled .cart-button:hover {
+  background-color: rgba(45, 64, 46, 0.1);
+}
+
+body:not(.scrolled) .header-login-btn {
+  border-color: #ffffff;
+  color: #ffffff;
+}
+body:not(.scrolled) .header-login-btn:hover {
+  background-color: #ffffff;
+  color: #2d402e;
+}
+body.scrolled .header-login-btn {
+  border-color: #2d402e;
+  color: #2d402e;
+}
+body.scrolled .header-login-btn:hover {
+  background-color: #2d402e;
+  color: #ffffff;
+}
