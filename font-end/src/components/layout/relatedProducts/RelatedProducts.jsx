@@ -36,12 +36,6 @@ export default function RelatedProducts({ products = [] }) {
               <button className="absolute bottom-4 right-4 bg-white/90 backdrop-blur p-3 rounded-full shadow-lg opacity-0 group-hover:opacity-100 transition-opacity">
                 <ShoppingCart className="w-5 h-5 text-primary" />
               </button>
-
-              {product.badge && (
-                <span className="absolute top-4 left-4 bg-accent text-white text-[10px] px-2 py-1 rounded font-sans uppercase font-bold tracking-tighter">
-                  {product.badge}
-                </span>
-              )}
             </div>
 
             <p className="text-xs font-sans text-gold font-bold uppercase tracking-widest mb-1">

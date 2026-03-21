@@ -166,63 +166,72 @@ export default function Home() {
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-8">
             {[
               {
+                id: 1,
                 name: "Trà Shan Tuyết 500 Năm",
                 price: "850.000đ",
                 desc: "Thu hái từ những cây chè cổ thụ trên đỉnh núi Mù Cang Chải cao 1800m.",
                 img: "https://lh3.googleusercontent.com/aida-public/AB6AXuDIdBtWBa498CTLMjdVFGDBDpfPIk7BUMDgwqRen-2N3ji6nVG5GqSekmkG7bluYWpfzl8e6JWq_f2Nlz7ZV80m0gs6s9kRy3Tg5yv9ODv_AdSN8JXHyHdYywmecqGLE5Hm_tfdYEMtHdGaTLQoPCPjdZq0aFgVPMaHMHhjNecOBa5q7SzZtGFgazMjYYbu1DjvK939NU-nOdZHIteXotAOavhTmjrTXCkHTa3V17lRmAA660nUNE51e1QB9vhDPA8gNyPIbMsLv8Ny",
               },
               {
+                id: 2,
                 name: "Lục Trà Ướp Hoa Bưởi",
                 price: "420.000đ",
                 desc: "Sự kết hợp tinh tế giữa trà xanh cổ thụ và hương hoa bưởi tháng Ba.",
                 img: "https://lh3.googleusercontent.com/aida-public/AB6AXuAoo-0D2scTorD5LtA2S_JMDNyVmWUbHUoQkRK5FU73J8G0igaKWMxZl2knUE4L5qtek3zMn7TNCrjnpdSTKHZq9puEUR_-yFqYZxg4TN9ArdKZSgyA3nYF_Ifmv4ESQLWTOHeUd6sJ3Ont7FSm61_jHymAL5ZvpCszopLHNVkO5tiDDQjF3udzuTzWwLqASJEQSi0xhf9jfuOHS6K730P9s-swSrti9fBnS-9O2n5XYbeHB8U3ieGvxVwmMRhz_ps0H6EslSzIYJIt",
               },
               {
+                id: 3,
                 name: "Bạch Trà Ngậm Sương",
                 price: "1.250.000đ",
                 desc: "Chỉ hái một búp duy nhất còn phủ lớp lông tơ trắng như tuyết.",
                 img: "https://lh3.googleusercontent.com/aida-public/AB6AXuAi8w7hJXR9feDBzKvnBjnpb_m16T6L-ETqKL9unwwSjGPsgVJuTTPTRr71mzAJBFxYSkZR2u0f4UZ-0G76FqlYzcMEGP3ZkjYRJsk0ASzTTx61rfSsxPRpxHdEfK37_nBl8168NCl2KVs4gs2v7kcV0994FV9OgnUVjK6zFL9yYj7xC7zKAmSz_tg9wNEYsCDAyXP4O-oF_sWiidbImQ3VAyhg6vzmzgXq68bmpj0bgZzvq3x8H4IRfsRYk0dkaNf6crS1ghb3cdVF",
               },
               {
+                id: 4,
                 name: "Hồng Trà Cổ Thụ",
                 price: "680.000đ",
                 desc: "Trà được lên men tự nhiên, mang hương thơm trái cây chín và vị ngọt mật ong.",
                 img: "https://lh3.googleusercontent.com/aida-public/AB6AXuApuxQ1j-LD5Ws7RnkKaMItUBxy5v2cSCzRvi5e99DnbDqeX2GUUo0fb_EMd88hDhn-0WAYRbImlBRf6UrWKTMt-sT0yhSxjP-pIBfNQpYHbZWlIg0zglFfKAKJkyhsyOQ6O7hxcoMStIyarozflrf5ic0OCFjcKpxx6WhUwxDDYAwtM-Dw4YqZUZDT4WscP0cpJaTEPr4GHFFf5eUTdklalIYV3IRI4BuZl1t_eMrgjVuL1PoalQP2FbbY34AlMOJBbNXA1M_v1AIO",
               },
             ].map((product, i) => (
-              <motion.div
-                key={i}
-                initial={{ opacity: 0, y: 20 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ duration: 0.5, delay: i * 0.1 }}
-                className="bg-white rounded-3xl overflow-hidden shadow-sm hover:shadow-xl transition-all border border-primary/5 group"
+              <Link
+                key={product.id}
+                to={`/products/${product.id}`}
+                className="block"
               >
-                <div className="relative aspect-[4/5] overflow-hidden">
-                  <img
-                    src={product.img}
-                    alt={product.name}
-                    referrerPolicy="no-referrer"
-                    className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
-                  />
-                </div>
-                <div className="p-5">
-                  <h3 className="text-lg font-bold mb-2 font-display line-clamp-1">
-                    {product.name}
-                  </h3>
-                  <p className="text-slate-500 text-xs mb-4 line-clamp-2">
-                    {product.desc}
-                  </p>
-                  <div className="flex items-center justify-between">
-                    <span className="text-primary font-black text-lg">
-                      {product.price}
-                    </span>
-                    <button className="bg-primary/5 hover:bg-primary text-primary hover:text-white p-2 rounded-xl transition-colors">
-                      <Plus className="w-4 h-4" />
-                    </button>
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  viewport={{ once: true }}
+                  transition={{ duration: 0.5, delay: i * 0.1 }}
+                  className="bg-white rounded-3xl overflow-hidden shadow-sm hover:shadow-xl transition-all border border-primary/5 group"
+                >
+                  <div className="relative aspect-[4/5] overflow-hidden">
+                    <img
+                      src={product.img}
+                      alt={product.name}
+                      referrerPolicy="no-referrer"
+                      className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
+                    />
                   </div>
-                </div>
-              </motion.div>
+                  <div className="p-5">
+                    <h3 className="text-lg font-bold mb-2 font-display line-clamp-1">
+                      {product.name}
+                    </h3>
+                    <p className="text-slate-500 text-xs mb-4 line-clamp-2">
+                      {product.desc}
+                    </p>
+                    <div className="flex items-center justify-between">
+                      <span className="text-primary font-black text-lg">
+                        {product.price}
+                      </span>
+                      <button className="bg-primary/5 hover:bg-primary text-primary hover:text-white p-2 rounded-xl transition-colors">
+                        <Plus className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </div>
+                </motion.div>
+              </Link>
             ))}
           </div>
         </div>

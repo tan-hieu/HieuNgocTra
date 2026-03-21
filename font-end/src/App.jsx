@@ -14,6 +14,9 @@ import Register from "./components/page/user/Register";
 import Reset from "./components/page/user/Reset";
 import OTP from "./components/page/user/OTP";
 import ResetPassword from "./components/page/user/ResetPassword";
+import Cart from "./components/page/user/Cart";
+import CheckoutPage from "./components/page/user/CheckoutPage";
+import PaymentSuccess from "./components/page/user/PaymentSuccess";
 
 function App() {
   const [isScrolled, setIsScrolled] = useState(false);
@@ -38,12 +41,18 @@ function App() {
     window.scrollTo(0, 0);
   };
 
+  const handleCartClick = () => {
+    navigate("/cart");
+    window.scrollTo(0, 0);
+  };
+
   return (
     <div className="min-h-screen flex flex-col bg-background-light">
       <Header
         isScrolled={isScrolled}
         handleLogoClick={handleLogoClick}
         handleLoginClick={handleLoginClick}
+        handleCartClick={handleCartClick}
       />
 
       <ScrollToTop />
@@ -58,6 +67,9 @@ function App() {
           <Route path="/reset" element={<Reset />} />
           <Route path="/otp" element={<OTP />} />
           <Route path="/reset-password" element={<ResetPassword />} />
+          <Route path="/cart" element={<Cart />} />
+          <Route path="/checkout" element={<CheckoutPage />} />
+          <Route path="/payment-success" element={<PaymentSuccess />} />
         </Routes>
       </main>
 

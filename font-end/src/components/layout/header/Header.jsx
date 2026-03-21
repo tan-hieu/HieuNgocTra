@@ -8,6 +8,7 @@ export default function Header({
   isScrolled,
   handleLogoClick,
   handleLoginClick,
+  handleCartClick,
 }) {
   useEffect(() => {
     if (isScrolled) {
@@ -91,6 +92,7 @@ export default function Header({
           </div>
 
           <button
+            onClick={handleCartClick}
             className={`p-2.5 rounded-full transition-colors relative ${
               isScrolled
                 ? "hover:bg-primary/10 text-primary"

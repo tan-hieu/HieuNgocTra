@@ -9,12 +9,12 @@ import {
   Brain,
   Wind,
   Utensils,
+  Coffee,
 } from "lucide-react";
 // eslint-disable-next-line
-import { motion } from "motion/react";
+import { motion, AnimatePresence } from "motion/react";
 import RelatedProducts from "../../layout/relatedProducts/RelatedProducts";
 
-// DÙNG CÙNG DATA VỚI AllProductsPage (có thể copy nguyên mảng qua đây)
 const products = [
   {
     id: 1,
@@ -97,6 +97,13 @@ export default function ProductDetailPage() {
       image:
         "https://lh3.googleusercontent.com/aida-public/AB6AXuACgp70KaKbN4p65rhbiXhaut8vmz27do4l2y1SrWVajXrU7hiZb8uNZXSyhAn4jwRyL9bBi7X9-bLry70ajteSbE2trGGZRZMwUvvbMu3e3pqyFD5Vkhr6mHwdo_oFqJwszltxAHr6GIsSCVVOPVCgn5AJ5bTbrEFS_AycNn5NdqYFJgYNiK2vmrRC9UxD0CpkaAqUAu3XhU0OOw2Z7PDEjkYzfV0CsPQm6RcbbTdifqRkjqyeDTqNrYZV2XFRjdaB7OF5kYEHPeJ6",
     },
+  ];
+
+  const TABS = [
+    { id: "story", label: "Câu chuyện sản phẩm" },
+    { id: "flavor", label: "Hương vị & Cảm nhận" },
+    { id: "brewing", label: "Nghệ thuật pha trà" },
+    { id: "storage", label: "Bảo quản" },
   ];
 
   return (
@@ -238,51 +245,138 @@ export default function ProductDetailPage() {
           </div>
         </div>
 
-        {/* Detailed Info Tabs */}
-        <section className="py-16 border-t border-primary/10">
-          <div className="flex flex-wrap gap-8 border-b border-primary/5 mb-10 overflow-x-auto">
-            {[
-              { id: "story", label: "Câu chuyện sản phẩm" },
-              { id: "taste", label: "Hương vị & Cảm nhận" },
-              { id: "guide", label: "Hướng dẫn pha trà" },
-              { id: "storage", label: "Bảo quản" },
-            ].map((tab) => (
+        {/* Tabs Section */}
+        <section className="py-24 border-t border-primary/10">
+          <div className="flex flex-wrap gap-12 border-b border-primary/10 mb-16 overflow-x-auto">
+            {TABS.map((tab) => (
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
-                className={`pb-4 border-b-2 transition-all font-display text-lg ${
+                className={`pb-6 text-lg font-display font-medium transition-all relative ${
                   activeTab === tab.id
-                    ? "border-primary text-primary font-bold"
-                    : "border-transparent text-slate-500 hover:text-primary"
+                    ? "text-primary"
+                    : "text-primary/40 hover:text-primary"
                 }`}
               >
                 {tab.label}
+                {activeTab === tab.id && (
+                  <motion.div
+                    layoutId="activeTab"
+                    className="absolute bottom-0 left-0 right-0 h-1 bg-primary rounded-full"
+                  />
+                )}
               </button>
             ))}
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-12">
-            <div className="md:col-span-2 space-y-6">
-              <h3 className="text-3xl font-bold text-slate-900 mb-4 font-display">
-                Tinh hoa từ đỉnh Tây Côn Lĩnh
-              </h3>
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-20">
+            <div className="lg:col-span-2 space-y-8">
+              <AnimatePresence mode="wait">
+                <motion.div
+                  key={activeTab}
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -20 }}
+                  transition={{ duration: 0.4 }}
+                  className="space-y-6"
+                >
+                  {activeTab === "story" && (
+                    <>
+                      <h3 className="text-4xl font-display font-bold mb-8">
+                        Tinh hoa từ đỉnh Tây Côn Lĩnh
+                      </h3>
+                      <p className="text-lg text-slate-600 mb-6 font-body leading-loose">
+                        Trà Shan Tuyết Cổ Thụ là loại trà đặc sản của vùng núi
+                        cao phía Bắc Việt Nam. Những cây trà sống ở độ cao trên
+                        1500m so với mực nước biển, quanh năm mây mù bao phủ,
+                        nhiệt độ chênh lệch ngày đêm lớn. Chính điều kiện khắc
+                        nghiệt này đã tạo nên hương vị đậm đà, tinh tế và đầy
+                        chiều sâu cho từng búp trà.
+                      </p>
+                      <p className="text-lg text-slate-600 font-body leading-loose">
+                        Mỗi búp trà được hái thủ công bởi những người dân tộc
+                        bản địa theo quy chuẩn "1 tôm 2 lá", sau đó được chế
+                        biến theo phương thức bí truyền để giữ trọn vẹn lớp lông
+                        tơ trắng mịn đặc trưng - nguồn gốc của cái tên "Shan
+                        Tuyết".
+                      </p>
+                    </>
+                  )}
 
-              <p className="text-slate-600 leading-loose font-body">
-                Trà Shan Tuyết Cổ Thụ là loại trà đặc sản của vùng núi cao phía
-                Bắc Việt Nam. Những cây trà sống ở độ cao trên 1500m so với mực
-                nước biển, quanh năm mây mù bao phủ, nhiệt độ chênh lệch ngày
-                đêm lớn. Chính điều kiện khắc nghiệt này đã tạo nên hương vị đậm
-                đà, tinh tế và đầy chiều sâu cho từng búp trà.
-              </p>
+                  {activeTab === "flavor" && (
+                    <>
+                      <h3 className="text-4xl font-display font-bold mb-8">
+                        Hương vị &amp; Cảm nhận
+                      </h3>
+                      <p className="text-lg text-slate-600 mb-6 font-body leading-loose">
+                        Khi pha, nước trà có màu vàng óng như mật ong rừng,
+                        trong trẻo không gợn đục. Hương thơm của trà là sự hòa
+                        quyện giữa mùi cỏ khô ngậm sương, thoảng hương hoa rừng
+                        và chút trầm mặc của gỗ mục.
+                      </p>
+                      <p className="text-lg text-slate-600 font-body leading-loose">
+                        Vị trà bắt đầu bằng một chút chát thanh tao nơi đầu
+                        lưỡi, nhanh chóng tan đi để nhường chỗ cho hậu vị ngọt
+                        sâu lắng, kéo dài mãi trong cổ họng. Đây là trải nghiệm
+                        thưởng trà đầy tĩnh lặng và thư thái.
+                      </p>
+                    </>
+                  )}
 
-              <p className="text-slate-600 leading-loose font-body">
-                Mỗi búp trà được hái thủ công bởi những người dân tộc bản địa
-                theo quy chuẩn "1 tôm 2 lá", sau đó được chế biến theo phương
-                thức bí truyền để giữ trọn vẹn lớp lông tơ trắng mịn đặc trưng -
-                nguồn gốc của cái tên "Shan Tuyết".
-              </p>
+                  {activeTab === "brewing" && (
+                    <>
+                      <h3 className="text-4xl font-display font-bold mb-8">
+                        Nghệ thuật pha trà
+                      </h3>
+                      <p className="text-lg text-slate-600 mb-6 font-body leading-loose">
+                        Để thưởng thức trọn vẹn hương vị của trà Shan Tuyết Cổ
+                        Thụ, việc pha trà cần sự tỉ mỉ và thấu hiểu. Sử dụng
+                        nước tinh khiết đun sôi và để nguội bớt là chìa khóa để
+                        không làm "cháy" búp trà non.
+                      </p>
+                      <ul className="list-disc pl-6 space-y-4 text-slate-600 text-lg font-body">
+                        <li>Tráng ấm chén bằng nước sôi để giữ nhiệt.</li>
+                        <li>Cho khoảng 5g trà vào ấm 150ml.</li>
+                        <li>Rót nước nóng khoảng 85-90°C vào ấm.</li>
+                        <li>
+                          Ủ trà trong khoảng 30-45 giây tùy khẩu vị đậm nhạt.
+                        </li>
+                        <li>Rót trà ra tống rồi chia đều ra các chén quân.</li>
+                      </ul>
+                    </>
+                  )}
 
-              <div className="grid grid-cols-3 gap-6 pt-8">
+                  {activeTab === "storage" && (
+                    <>
+                      <h3 className="text-4xl font-display font-bold mb-8">
+                        Bảo quản tinh túy
+                      </h3>
+                      <p className="text-lg text-slate-600 mb-6 font-body leading-loose">
+                        Trà Shan Tuyết rất nhạy cảm với ánh sáng và độ ẩm. Bảo
+                        quản đúng cách sẽ giúp trà giữ được hương vị thơm ngon
+                        trong thời gian dài.
+                      </p>
+                      <ul className="list-disc pl-6 space-y-4 text-slate-600 text-lg font-body">
+                        <li>Đựng trà trong hũ gốm, sứ hoặc thiếc kín hơi.</li>
+                        <li>
+                          Để trà ở nơi khô ráo, thoáng mát, tránh ánh nắng trực
+                          tiếp.
+                        </li>
+                        <li>
+                          Tránh để trà gần các vật dụng có mùi mạnh như nước
+                          hoa, gia vị.
+                        </li>
+                        <li>
+                          Nên chia nhỏ trà để sử dụng dần, hạn chế mở túi trà
+                          quá nhiều lần.
+                        </li>
+                      </ul>
+                    </>
+                  )}
+                </motion.div>
+              </AnimatePresence>
+
+              <div className="grid grid-cols-3 gap-6 pt-12">
                 {[
                   {
                     icon: Thermometer,
@@ -291,61 +385,66 @@ export default function ProductDetailPage() {
                   },
                   { icon: Timer, label: "Thời gian", value: "30 - 45 giây" },
                   { icon: Droplets, label: "Lượng trà", value: "5g / 150ml" },
-                ].map((item) => (
+                ].map((stat) => (
                   <div
-                    key={item.label}
-                    className="text-center p-6 bg-[#F7F2E8] rounded-2xl border border-primary/5"
+                    key={stat.label}
+                    className="bg-[#F7F2E8] p-8 rounded-3xl border border-primary/5 flex flex-col items-center text-center group hover:bg-white transition-all duration-500 hover:shadow-xl hover:shadow-primary/10"
                   >
-                    <item.icon className="w-8 h-8 mx-auto text-gold mb-3" />
-                    <h4 className="font-sans text-[10px] uppercase font-bold tracking-widest text-primary mb-1">
-                      {item.label}
-                    </h4>
-                    <p className="text-lg font-bold font-sans">{item.value}</p>
+                    <stat.icon className="w-8 h-8 text-gold mb-4 group-hover:scale-110 transition-transform" />
+                    <span className="text-[10px] font-sans font-bold uppercase tracking-[0.2em] text-primary/40 mb-2">
+                      {stat.label}
+                    </span>
+                    <span className="text-xl font-bold text-primary">
+                      {stat.value}
+                    </span>
                   </div>
                 ))}
               </div>
             </div>
 
-            <div className="bg-primary text-white p-8 rounded-2xl h-fit">
-              <h3 className="text-2xl font-bold mb-6 italic text-gold font-display">
+            <aside className="bg-primary text-white p-10 rounded-3xl shadow-2xl relative overflow-hidden">
+              <div className="absolute top-0 right-0 w-32 h-32 bg-accent/10 rounded-full -mr-16 -mt-16 blur-3xl" />
+              <h3 className="text-2xl font-display font-bold mb-10 italic text-gold">
                 Profile Hương Vị
               </h3>
-
-              <ul className="space-y-6 font-sans">
+              <ul className="space-y-10">
                 {[
                   {
-                    icon: Brain,
-                    label: "Cảm quan",
+                    icon: Coffee,
+                    title: "Cảm quan",
                     desc: "Nước trà vàng óng như mật ong, trong trẻo.",
                   },
                   {
                     icon: Wind,
-                    label: "Hương thơm",
+                    title: "Hương thơm",
                     desc: "Mùi cỏ khô, thoảng hương hoa rừng và gỗ mục.",
                   },
                   {
                     icon: Utensils,
-                    label: "Vị trà",
+                    title: "Vị trà",
                     desc: "Tiền vị chát thanh, hậu vị ngọt sâu lắng, kéo dài.",
                   },
                 ].map((item) => (
-                  <li key={item.label} className="flex items-start gap-4">
-                    <item.icon className="w-5 h-5 text-gold shrink-0 mt-1" />
+                  <li key={item.title} className="flex items-start gap-6 group">
+                    <div className="p-3 bg-white/10 rounded-xl group-hover:bg-accent transition-colors">
+                      <item.icon className="w-6 h-6 text-gold group-hover:text-primary transition-colors" />
+                    </div>
                     <div>
-                      <h5 className="font-bold text-sm uppercase tracking-wider mb-1">
-                        {item.label}
+                      <h5 className="font-sans font-bold text-xs uppercase tracking-widest mb-2 text-gold">
+                        {item.title}
                       </h5>
-                      <p className="text-white/80 text-sm leading-relaxed">
+                      <p className="text-white/70 text-sm leading-relaxed">
                         {item.desc}
                       </p>
                     </div>
                   </li>
                 ))}
               </ul>
-            </div>
+            </aside>
           </div>
         </section>
 
+        {/* sản phẩm liên quan */}
         <RelatedProducts products={relatedProducts} />
       </main>
     </div>
