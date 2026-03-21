@@ -1,12 +1,29 @@
 import { Search, ShoppingBag, Leaf } from "lucide-react";
 import "./Header.css";
 import logo from "../../../assets/logo/android-icon-144x144.png";
+import { NavLink } from "react-router-dom";
+import { useEffect } from "react";
 
 export default function Header({
   isScrolled,
   handleLogoClick,
   handleLoginClick,
 }) {
+  useEffect(() => {
+    if (isScrolled) {
+      document.body.classList.add("scrolled");
+    } else {
+      document.body.classList.remove("scrolled");
+    }
+  }, [isScrolled]);
+
+  const navItems = [
+    { label: "Sản phẩm", to: "/products" },
+    { label: "Câu chuyện", to: "/story" },
+    { label: "Nguồn gốc", to: "/origin" },
+    { label: "Liên hệ", to: "/contact" },
+  ];
+
   return (
     <header
       className={`fixed top-0 z-50 w-full transition-all duration-300 ${
@@ -37,16 +54,14 @@ export default function Header({
             </h2>
           </button>
           <nav className="hidden md:flex items-center gap-8">
-            {["Sản phẩm", "Câu chuyện", "Nguồn gốc", "Liên hệ"].map((item) => (
-              <a
-                key={item}
-                href="#"
-                className={`text-sm font-bold transition-colors hover:text-gold ${
-                  isScrolled ? "text-primary" : "text-white"
-                }`}
+            {navItems.map((item) => (
+              <NavLink
+                key={item.to}
+                to={item.to}
+                className="nav-link inline-flex items-center h-10 text-sm font-bold"
               >
-                {item}
-              </a>
+                {item.label}
+              </NavLink>
             ))}
           </nav>
         </div>
@@ -67,7 +82,7 @@ export default function Header({
             <input
               type="text"
               placeholder="Tìm kiếm trà..."
-              className={`bg-transparent border-none focus:ring-0 text-sm w-44 lg:w-56 placeholder:transition-colors ${
+              className={`bg-transparent border-none focus:ring-0 outline-none focus:outline-none text-sm w-44 lg:w-56 placeholder:transition-colors ${
                 isScrolled
                   ? "text-primary placeholder:text-primary/50"
                   : "text-white placeholder:text-white/50"

@@ -6,6 +6,12 @@ body:not(.scrolled) #site-header {
   box-shadow: none;
   backdrop-filter: none;
 }
+body:not(.scrolled) .nav-link {
+  color: #ffffff;
+}
+body.scrolled .nav-link {
+  color: #2d402e;
+}
 
 body.scrolled #site-header {
   background-color: rgba(242, 235, 220, 0.95);
@@ -34,6 +40,37 @@ body:not(.scrolled) .nav-link {
 }
 body.scrolled .nav-link {
   color: #2d402e;
+}
+
+/* màu mặc định theo trạng thái header */
+body:not(.scrolled) .nav-link {
+  color: #ffffff;
+}
+body.scrolled .nav-link {
+  color: #2d402e;
+}
+
+/* style chung cho tất cả link */
+.nav-link {
+  padding-bottom: 0.25rem; /* giống pb-1 */
+  border-bottom: 2px solid transparent;
+  transition:
+    color 150ms ease,
+    border-color 150ms ease;
+}
+
+/* màu & gạch chân khi hover */
+body:not(.scrolled) .nav-link:hover,
+body.scrolled .nav-link:hover {
+  color: #d9a45a; /* màu gold bạn đang dùng */
+  border-bottom-color: #d9a45a;
+}
+
+/* KHI ĐANG Ở TRANG ĐÓ (NavLink active) */
+body:not(.scrolled) .nav-link[aria-current="page"],
+body.scrolled .nav-link[aria-current="page"] {
+  color: #d9a45a;
+  border-bottom-color: #d9a45a;
 }
 
 body:not(.scrolled) .search-container {

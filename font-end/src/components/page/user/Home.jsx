@@ -7,7 +7,9 @@ import {
   Star,
   Calendar,
 } from "lucide-react";
+// eslint-disable-next-line
 import { motion } from "motion/react";
+import { Link } from "react-router-dom";
 
 export default function Home() {
   return (
@@ -77,12 +79,12 @@ export default function Home() {
               </h2>
               <div className="w-20 h-1 bg-gold"></div>
             </div>
-            <a
-              href="#"
+            <Link
+              to="/products"
               className="text-accent font-bold hover:underline flex items-center gap-1"
             >
               Xem tất cả
-            </a>
+            </Link>
           </motion.div>
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-6">
             {[
@@ -154,9 +156,12 @@ export default function Home() {
                 Danh Sách Sản Phẩm
               </h2>
             </div>
-            <a href="#" className="text-accent font-bold hover:underline mb-1">
+            <Link
+              to="/products"
+              className="text-accent font-bold hover:underline mb-1"
+            >
               Xem tất cả
-            </a>
+            </Link>
           </motion.div>
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-8">
             {[

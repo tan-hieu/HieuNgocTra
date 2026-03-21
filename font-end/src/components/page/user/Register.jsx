@@ -10,6 +10,7 @@ import {
   ArrowRight,
   Leaf,
 } from "lucide-react";
+// eslint-disable-next-line
 import { motion } from "motion/react";
 import { useNavigate } from "react-router-dom";
 

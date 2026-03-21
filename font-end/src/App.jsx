@@ -7,9 +7,13 @@ import ScrollToTop from "./ScrollToTop";
 import Header from "./components/layout/header/Header";
 import Footer from "./components/layout/footer/Footer";
 import Home from "./components/page/user/Home";
+import AllProductsPage from "./components/page/user/AllProductsPage";
+import ProductDetailPage from "./components/page/user/ProductDetailPage";
 import Login from "./components/page/user/Login";
 import Register from "./components/page/user/Register";
+import Reset from "./components/page/user/Reset";
 import OTP from "./components/page/user/OTP";
+import ResetPassword from "./components/page/user/ResetPassword";
 
 function App() {
   const [isScrolled, setIsScrolled] = useState(false);
@@ -35,7 +39,7 @@ function App() {
   };
 
   return (
-    <div className="min-h-screen flex flex-col overflow-x-hidden bg-background-light">
+    <div className="min-h-screen flex flex-col bg-background-light">
       <Header
         isScrolled={isScrolled}
         handleLogoClick={handleLogoClick}
@@ -47,9 +51,13 @@ function App() {
       <main>
         <Routes>
           <Route path="/" element={<Home />} />
+          <Route path="/products" element={<AllProductsPage />} />
+          <Route path="/products/:productId" element={<ProductDetailPage />} />
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
+          <Route path="/reset" element={<Reset />} />
           <Route path="/otp" element={<OTP />} />
+          <Route path="/reset-password" element={<ResetPassword />} />
         </Routes>
       </main>
 

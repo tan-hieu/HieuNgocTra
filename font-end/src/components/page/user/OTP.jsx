@@ -1,5 +1,6 @@
 import { useState, useRef } from "react";
 import { Leaf, ArrowRight, ArrowLeft } from "lucide-react";
+// eslint-disable-next-line
 import { motion } from "motion/react";
 import { useNavigate } from "react-router-dom";
 
@@ -45,6 +46,10 @@ export default function OTP() {
 
   const handleBackLogin = () => {
     navigate("/login");
+  };
+
+  const handleGoResetPassword = () => {
+    navigate("/reset-password");
   };
 
   return (
@@ -114,6 +119,7 @@ export default function OTP() {
           {/* CTA Button Section */}
           <div className="flex flex-col gap-4">
             <motion.button
+              onClick={handleGoResetPassword}
               whileHover={{ scale: 1.02 }}
               whileTap={{ scale: 0.98 }}
               className="w-full bg-white text-primary font-black py-5 rounded-2xl flex items-center justify-center gap-3 hover:bg-gold hover:text-white transition-all shadow-xl group text-base"
@@ -140,11 +146,6 @@ export default function OTP() {
               Quay lại đăng nhập
             </button>
           </div>
-        </div>
-
-        {/* Bottom Branding */}
-        <div className="mt-6 flex justify-center text-white/50 text-[9px] tracking-[0.2em] uppercase font-medium">
-          Premium Tea Experience © 2024
         </div>
       </motion.div>
     </div>

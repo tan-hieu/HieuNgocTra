@@ -10,6 +10,7 @@ import {
   HelpCircle,
   Globe,
 } from "lucide-react";
+// eslint-disable-next-line
 import { motion } from "motion/react";
 import { useNavigate } from "react-router-dom";
 
@@ -25,8 +26,8 @@ export default function Login() {
     navigate("/register");
   };
 
-  const handleGoOTP = () => {
-    navigate("/otp");
+  const handleGoReset = () => {
+    navigate("/reset");
   };
 
   return (
@@ -125,7 +126,7 @@ export default function Login() {
               </span>
             </label>
             <button
-              onClick={handleGoOTP}
+              onClick={handleGoReset}
               className="text-white/60 hover:text-gold transition-colors"
             >
               Quên mật khẩu?
