@@ -14,8 +14,12 @@ import {
 import { motion } from "motion/react";
 import { useNavigate } from "react-router-dom";
 
-export default function Login() {
+export default function Login({ onLoginSuccess }) {
   const [showPassword, setShowPassword] = useState(false);
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [errors, setErrors] = useState({ email: "", password: "" });
+  const [loginError, setLoginError] = useState("");
   const navigate = useNavigate();
 
   const handleBackHome = () => {
@@ -28,6 +32,68 @@ export default function Login() {
 
   const handleGoReset = () => {
     navigate("/reset");
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+
+    const newErrors = { email: "", password: "" };
+    let isValid = true;
+
+    if (!email.trim()) {
+      newErrors.email = "Email không được để trống";
+      isValid = false;
+    } else {
+      const gmailRegex = /^[a-zA-Z0-9._%+-]+@gmail\.com$/;
+      if (!gmailRegex.test(email.trim())) {
+        newErrors.email = "Email phải đúng định dạng @gmail.com";
+        isValid = false;
+      }
+    }
+
+    if (!password.trim()) {
+      newErrors.password = "Mật khẩu không được để trống";
+      isValid = false;
+    }
+
+    setErrors(newErrors);
+
+    if (!isValid) return;
+
+    try {
+      const res = await fetch("http://localhost:8080/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include", // để gửi cookie/session
+        body: JSON.stringify({ email, password }),
+      });
+
+      let data = {};
+      try {
+        data = await res.json();
+      } catch {}
+
+      console.log("login status:", res.status);
+      console.log("login body:", data);
+
+      if (!res.ok) {
+        setLoginError(data.message || `Đăng nhập thất bại (mã ${res.status})`);
+        return;
+      }
+
+      if (onLoginSuccess) {
+        onLoginSuccess({
+          fullName: data.fullName,
+          role: data.role,
+          email,
+        });
+      }
+
+      navigate("/");
+    } catch (err) {
+      console.error(err);
+      setLoginError("Lỗi kết nối server");
+    }
   };
 
   return (
@@ -67,11 +133,8 @@ export default function Login() {
         </p>
 
         {/* Form */}
-        <form
-          className="space-y-7 text-left"
-          onSubmit={(e) => e.preventDefault()}
-        >
-          <div className="space-y-3">
+        <form className="space-y-7 text-left" onSubmit={handleSubmit}>
+          <div className="space-y-1">
             <label className="text-white/70 text-[11px] font-bold ml-1 uppercase tracking-wider">
               Email hoặc Tên đăng nhập
             </label>
@@ -79,13 +142,23 @@ export default function Login() {
               <Mail className="absolute left-5 top-1/2 -translate-y-1/2 w-4 h-4 text-white/30 group-focus-within:text-white/60 transition-colors" />
               <input
                 type="text"
-                placeholder="example@traviet.com"
-                className="w-full bg-white/5 border border-white/15 rounded-2xl py-5 pl-14 pr-5 text-white placeholder:text-white/20 focus:outline-none focus:bg-white/10 focus:border-white/30 focus:ring-1 focus:ring-white/20 transition-all text-sm"
+                placeholder="dtanhieu123@gmail.com"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                className={`w-full bg-white/5 border border-white/15 rounded-2xl py-5 pl-14 pr-5 text-white placeholder:text-white/20 focus:outline-none focus:bg-white/10 focus:border-white/30 focus:ring-1 focus:ring-white/20 transition-all text-sm ${
+                  errors.email
+                    ? "border-red-400 focus:border-red-400 focus:ring-red-400"
+                    : ""
+                }`}
               />
             </div>
           </div>
 
-          <div className="space-y-3">
+          {errors.email && (
+            <p className="text-red-400 text-xs mt-1">{errors.email}</p>
+          )}
+
+          <div className="space-y-1">
             <label className="text-white/70 text-[11px] font-bold ml-1 uppercase tracking-wider">
               Mật khẩu
             </label>
@@ -94,7 +167,13 @@ export default function Login() {
               <input
                 type={showPassword ? "text" : "password"}
                 placeholder="••••••••"
-                className="w-full bg-white/5 border border-white/15 rounded-2xl py-5 pl-14 pr-14 text-white placeholder:text-white/20 focus:outline-none focus:bg-white/10 focus:border-white/30 focus:ring-1 focus:ring-white/20 transition-all text-sm"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className={`w-full bg-white/5 border border-white/15 rounded-2xl py-5 pl-14 pr-14 text-white placeholder:text-white/20 focus:outline-none focus:bg-white/10 focus:border-white/30 focus:ring-1 focus:ring-white/20 transition-all text-sm ${
+                  errors.password
+                    ? "border-red-400 focus:border-red-400 focus:ring-red-400"
+                    : ""
+                }`}
               />
               <button
                 type="button"
@@ -108,6 +187,10 @@ export default function Login() {
                 )}
               </button>
             </div>
+
+            {errors.password && (
+              <p className="text-red-400 text-xs mt-1">{errors.password}</p>
+            )}
           </div>
 
           <div className="flex items-center justify-between text-[11px] font-bold">
@@ -126,6 +209,7 @@ export default function Login() {
               </span>
             </label>
             <button
+              type="button"
               onClick={handleGoReset}
               className="text-white/60 hover:text-gold transition-colors"
             >
@@ -133,10 +217,19 @@ export default function Login() {
             </button>
           </div>
 
-          <button className="w-full bg-white text-primary font-black py-5 rounded-2xl flex items-center justify-center gap-3 hover:bg-gold hover:text-white transition-all shadow-xl group text-base">
+          <button
+            type="submit"
+            className="w-full bg-white text-primary font-black py-5 rounded-2xl flex items-center justify-center gap-3 hover:bg-gold hover:text-white transition-all shadow-xl group text-base"
+          >
             Đăng Nhập
             <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
           </button>
+
+          {loginError && (
+            <p className="text-red-400 text-xs mt-3 text-center">
+              {loginError}
+            </p>
+          )}
         </form>
 
         {/* Divider */}

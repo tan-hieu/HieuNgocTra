@@ -1,14 +1,17 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { Leaf, ArrowRight, ArrowLeft } from "lucide-react";
 // eslint-disable-next-line
 import { motion } from "motion/react";
 import { useNavigate } from "react-router-dom";
+import { useLocation } from "react-router-dom";
 
 export default function OTP() {
   const [otp, setOtp] = useState(["", "", "", "", "", ""]);
   const inputRefs = useRef([]);
 
   const navigate = useNavigate();
+  const location = useLocation();
+  const email = location.state?.email; // nếu cần hiển thị
 
   const handleChange = (index, value) => {
     if (isNaN(Number(value))) return;
@@ -48,9 +51,83 @@ export default function OTP() {
     navigate("/login");
   };
 
-  const handleGoResetPassword = () => {
-    navigate("/reset-password");
+  const handleVerify = async () => {
+    if (timeLeft <= 0) {
+      setError("OTP đã hết hạn, vui lòng đăng ký lại");
+      return;
+    }
+
+    const code = otp.join("");
+    if (code.length !== 6) {
+      setError("Vui lòng nhập đủ 6 số");
+      return;
+    }
+
+    try {
+      const res = await fetch("http://localhost:8080/api/auth/verify-otp", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ otp: code }),
+      });
+
+      let data = {};
+      try {
+        data = await res.json();
+      } catch {}
+
+      console.log("verify-otp status:", res.status);
+      console.log("verify-otp body:", data);
+
+      if (!res.ok) {
+        setError(data.message || `Lỗi xác thực OTP (mã ${res.status})`);
+        return;
+      }
+
+      setError("");
+      navigate("/login");
+    } catch (e) {
+      setError("Không thể kết nối tới server");
+    }
   };
+
+  const handleResend = async () => {
+    try {
+      const res = await fetch("http://localhost:8080/api/auth/resend-otp", {
+        method: "POST",
+        credentials: "include",
+      });
+
+      let data = {};
+      try {
+        data = await res.json();
+      } catch {}
+
+      if (!res.ok) {
+        setError(data.message || `Không gửi lại được OTP (mã ${res.status})`);
+        return;
+      }
+
+      setError("");
+      setOtp(["", "", "", "", "", ""]);
+      setTimeLeft(180); // reset về 3 phút
+    } catch (e) {
+      setError("Không thể kết nối tới server khi gửi lại OTP");
+    }
+  };
+
+  const [timeLeft, setTimeLeft] = useState(180); // 180 giây = 3 phút
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    if (timeLeft <= 0) return;
+
+    const timer = setInterval(() => {
+      setTimeLeft((prev) => prev - 1);
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, [timeLeft]);
 
   return (
     <div className="relative min-h-screen w-full flex flex-col items-center justify-center overflow-hidden font-sans">
@@ -116,10 +193,24 @@ export default function OTP() {
             </div>
           </div>
 
+          {/* Timer + lỗi */}
+          <div className="flex flex-col items-center mt-2">
+            <span className="text-white/80 text-xs">
+              Mã sẽ hết hạn sau{" "}
+              <span className="font-semibold">
+                {String(Math.floor(timeLeft / 60)).padStart(2, "0")}:
+                {String(timeLeft % 60).padStart(2, "0")}
+              </span>
+            </span>
+            {error && (
+              <p className="text-red-400 text-xs text-center mt-1">{error}</p>
+            )}
+          </div>
+
           {/* CTA Button Section */}
           <div className="flex flex-col gap-4">
             <motion.button
-              onClick={handleGoResetPassword}
+              onClick={handleVerify}
               whileHover={{ scale: 1.02 }}
               whileTap={{ scale: 0.98 }}
               className="w-full bg-white text-primary font-black py-5 rounded-2xl flex items-center justify-center gap-3 hover:bg-gold hover:text-white transition-all shadow-xl group text-base"
@@ -133,7 +224,10 @@ export default function OTP() {
           <div className="flex flex-col items-center gap-3 text-xs md:text-sm font-medium">
             <div className="text-white/70">
               Bạn chưa nhận được mã?
-              <button className="text-white hover:underline ml-1 underline-offset-4 decoration-[#ec5b13]/50 cursor-pointer">
+              <button
+                onClick={handleResend}
+                className="text-white hover:underline ml-1 underline-offset-4 decoration-[#ec5b13]/50 cursor-pointer"
+              >
                 Gửi lại mã
               </button>
             </div>
@@ -148,6 +242,23 @@ export default function OTP() {
           </div>
         </div>
       </motion.div>
+
+      {error && (
+        <p className="text-red-400 text-xs text-center mt-2">{error}</p>
+      )}
+
+      <div className="flex flex-col items-center mt-2">
+        <span className="text-white/80 text-xs">
+          Mã sẽ hết hạn sau{" "}
+          <span className="font-semibold">
+            {String(Math.floor(timeLeft / 60)).padStart(2, "0")}:
+            {String(timeLeft % 60).padStart(2, "0")}
+          </span>
+        </span>
+        {error && (
+          <p className="text-red-400 text-xs text-center mt-1">{error}</p>
+        )}
+      </div>
     </div>
   );
 }

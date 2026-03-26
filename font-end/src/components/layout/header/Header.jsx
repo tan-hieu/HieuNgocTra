@@ -1,15 +1,21 @@
-import { Search, ShoppingBag, Leaf } from "lucide-react";
+import { Search, ShoppingBag, Leaf, User } from "lucide-react";
 import "./Header.css";
 import logo from "../../../assets/logo/android-icon-144x144.png";
-import { NavLink } from "react-router-dom";
-import { useEffect } from "react";
+import { NavLink, useNavigate } from "react-router-dom";
+import { useEffect, useState, useRef } from "react";
 
 export default function Header({
   isScrolled,
   handleLogoClick,
   handleLoginClick,
   handleCartClick,
+  currentUser,
+  onLogout,
 }) {
+  const [openMenu, setOpenMenu] = useState(false);
+  const menuRef = useRef(null);
+  const navigate = useNavigate();
+
   useEffect(() => {
     if (isScrolled) {
       document.body.classList.add("scrolled");
@@ -17,6 +23,16 @@ export default function Header({
       document.body.classList.remove("scrolled");
     }
   }, [isScrolled]);
+
+  // đóng menu khi click ra ngoài
+  useEffect(() => {
+    const handler = (e) => {
+      if (!menuRef.current || menuRef.current.contains(e.target)) return;
+      setOpenMenu(false);
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, []);
 
   const navItems = [
     { label: "Sản phẩm", to: "/products" },
@@ -103,16 +119,56 @@ export default function Header({
             <span className="absolute top-1 right-1 w-2 h-2 bg-accent rounded-full" />
           </button>
 
-          <button
-            onClick={handleLoginClick}
-            className={`px-5 py-1.5 rounded-full font-bold text-sm transition-all border ${
-              isScrolled
-                ? "border-primary text-primary hover:bg-primary hover:text-white"
-                : "border-white text-white hover:bg-white hover:text-primary"
-            }`}
-          >
-            Đăng nhập
-          </button>
+          {!currentUser && (
+            <button
+              onClick={handleLoginClick}
+              className={`px-5 py-1.5 rounded-full font-bold text-sm transition-all border ${
+                isScrolled
+                  ? "border-primary text-primary hover:bg-primary hover:text-white"
+                  : "border-white text-white hover:bg-white hover:text-primary"
+              }`}
+            >
+              Đăng nhập
+            </button>
+          )}
+
+          {currentUser && (
+            <div className="relative" ref={menuRef}>
+              <button
+                onClick={() => setOpenMenu((v) => !v)}
+                className={`flex items-center gap-2 px-4 py-1.5 rounded-full text-sm font-bold border transition-all ${
+                  isScrolled
+                    ? "border-primary text-primary hover:bg-primary hover:text-white"
+                    : "border-white text-white hover:bg-white hover:text-primary"
+                }`}
+              >
+                <User className="w-4 h-4" />
+                <span className="max-w-[90px] truncate">
+                  {currentUser.fullName || "Tài khoản"}
+                </span>
+              </button>
+
+              {openMenu && (
+                <div className="absolute right-0 mt-2 w-44 bg-white rounded-xl shadow-lg py-2 text-sm z-50">
+                  <button
+                    className="w-full text-left px-4 py-2 hover:bg-gray-100 text-gray-700"
+                    onClick={() => {
+                      setOpenMenu(false);
+                      navigate("/profile");
+                    }}
+                  >
+                    Hồ sơ
+                  </button>
+                  <button
+                    onClick={onLogout}
+                    className="w-full text-left px-4 py-2 hover:bg-red-50 text-red-500"
+                  >
+                    Đăng xuất
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
         </div>
       </div>
     </header>

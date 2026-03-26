@@ -17,10 +17,128 @@ import { useNavigate } from "react-router-dom";
 export default function Register() {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [fullName, setFullName] = useState("");
+  const [email, setEmail] = useState("");
+  const [phone, setPhone] = useState("");
+  const [dob, setDob] = useState("");
+  const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+
+  const [errors, setErrors] = useState({
+    fullName: "",
+    email: "",
+    phone: "",
+    dob: "",
+    password: "",
+    confirmPassword: "",
+  });
+
   const navigate = useNavigate();
+  const today = new Date().toISOString().split("T")[0];
 
   const handleGoLogin = () => {
     navigate("/login");
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    const newErrors = {
+      fullName: "",
+      email: "",
+      phone: "",
+      dob: "",
+      password: "",
+      confirmPassword: "",
+    };
+    let isValid = true;
+
+    // Họ tên
+    if (!fullName.trim()) {
+      newErrors.fullName = "Họ và tên không được để trống";
+      isValid = false;
+    }
+
+    // Email
+    if (!email.trim()) {
+      newErrors.email = "Email không được để trống";
+      isValid = false;
+    } else {
+      const gmailRegex = /^[a-zA-Z0-9._%+-]+@gmail\.com$/;
+      if (!gmailRegex.test(email.trim())) {
+        newErrors.email = "Email phải đúng định dạng @gmail.com";
+        isValid = false;
+      }
+    }
+
+    // Số điện thoại
+    if (!phone.trim()) {
+      newErrors.phone = "Số điện thoại không được để trống";
+      isValid = false;
+    } else {
+      const phoneRegex = /^0\d{9}$/; // bắt đầu bằng 0 và đủ 10 số
+      if (!phoneRegex.test(phone.trim())) {
+        newErrors.phone = "Số điện thoại phải có 10 số và bắt đầu bằng 0";
+        isValid = false;
+      }
+    }
+
+    // Ngày sinh
+    if (!dob) {
+      newErrors.dob = "Ngày sinh không được để trống";
+      isValid = false;
+    } else {
+      const selected = new Date(dob);
+      const now = new Date();
+      if (selected > now) {
+        newErrors.dob = "Ngày sinh không được lớn hơn ngày hiện tại";
+        isValid = false;
+      }
+    }
+
+    // Mật khẩu
+    if (!password) {
+      newErrors.password = "Mật khẩu không được để trống";
+      isValid = false;
+    } else if (password.length < 6) {
+      newErrors.password = "Mật khẩu phải ít nhất 6 ký tự";
+      isValid = false;
+    }
+
+    // Xác nhận mật khẩu
+    if (!confirmPassword) {
+      newErrors.confirmPassword = "Vui lòng nhập lại mật khẩu";
+      isValid = false;
+    } else if (confirmPassword !== password) {
+      newErrors.confirmPassword = "Mật khẩu xác nhận không khớp";
+      isValid = false;
+    }
+
+    setErrors(newErrors);
+    if (!isValid) return;
+
+    // TODO: gọi API đăng ký ở đây
+    try {
+      const res = await fetch("http://localhost:8080/api/auth/register", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ fullName, email, phone, password }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        // ví dụ hiển thị data.message ở chỗ chung
+        alert(data.message || "Đăng ký thất bại");
+        return;
+      }
+
+      // thành công -> chuyển sang OTP, có thể truyền email qua state
+      navigate("/otp", { state: { email } });
+    } catch (err) {
+      console.error(err);
+      alert("Lỗi kết nối server");
+    }
   };
 
   return (
@@ -54,20 +172,31 @@ export default function Register() {
         </div>
 
         {/* Form */}
-        <form className="space-y-6">
+        <form className="space-y-6" onSubmit={handleSubmit}>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {/* Họ và tên */}
             <div className="space-y-2">
               <label className="text-white/90 text-sm font-medium px-1">
                 Họ và tên
               </label>
-              <div className="relative group">
-                <User className="absolute left-4 top-1/2 -translate-y-1/2 text-white/50 w-5 h-5 group-focus-within:text-white transition-colors" />
-                <input
-                  type="text"
-                  placeholder="Nguyễn Văn A"
-                  className="w-full pl-12 pr-4 py-3.5 rounded-2xl border border-white/10 bg-white/10 focus:bg-white/15 focus:ring-1 focus:ring-[#C9A66B] focus:border-[#C9A66B] transition-all text-white placeholder-white/40 outline-none"
-                />
+              <div className="space-y-1">
+                <div className="relative group">
+                  <User className="absolute left-4 top-1/2 -translate-y-1/2 text-white/50 w-5 h-5 group-focus-within:text-white transition-colors" />
+                  <input
+                    type="text"
+                    placeholder="Nguyễn Văn A"
+                    value={fullName}
+                    onChange={(e) => setFullName(e.target.value)}
+                    className={`w-full pl-12 pr-4 py-3.5 rounded-2xl border bg-white/10 border-white/10 focus:bg-white/15 focus:ring-1 focus:ring-[#C9A66B] focus:border-[#C9A66B] transition-all text-white placeholder-white/40 outline-none ${
+                      errors.fullName
+                        ? "border-red-400 focus:ring-red-400 focus:border-red-400"
+                        : ""
+                    }`}
+                  />
+                </div>
+                {errors.fullName && (
+                  <p className="text-red-400 text-xs">{errors.fullName}</p>
+                )}
               </div>
             </div>
 
@@ -76,13 +205,24 @@ export default function Register() {
               <label className="text-white/90 text-sm font-medium px-1">
                 Email
               </label>
-              <div className="relative group">
-                <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-white/50 w-5 h-5 group-focus-within:text-white transition-colors" />
-                <input
-                  type="email"
-                  placeholder="example@tea.vn"
-                  className="w-full pl-12 pr-4 py-3.5 rounded-2xl border border-white/10 bg-white/10 focus:bg-white/15 focus:ring-1 focus:ring-[#C9A66B] focus:border-[#C9A66B] transition-all text-white placeholder-white/40 outline-none"
-                />
+              <div className="space-y-1">
+                <div className="relative group">
+                  <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-white/50 w-5 h-5 group-focus-within:text-white transition-colors" />
+                  <input
+                    type="email"
+                    placeholder="example@tea.vn"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    className={`w-full pl-12 pr-4 py-3.5 rounded-2xl border bg-white/10 border-white/10 focus:bg-white/15 focus:ring-1 focus:ring-[#C9A66B] focus:border-[#C9A66B] transition-all text-white placeholder-white/40 outline-none ${
+                      errors.email
+                        ? "border-red-400 focus:ring-red-400 focus:border-red-400"
+                        : ""
+                    }`}
+                  />
+                </div>
+                {errors.email && (
+                  <p className="text-red-400 text-xs">{errors.email}</p>
+                )}
               </div>
             </div>
 
@@ -91,13 +231,24 @@ export default function Register() {
               <label className="text-white/90 text-sm font-medium px-1">
                 Số điện thoại
               </label>
-              <div className="relative group">
-                <Phone className="absolute left-4 top-1/2 -translate-y-1/2 text-white/50 w-5 h-5 group-focus-within:text-white transition-colors" />
-                <input
-                  type="tel"
-                  placeholder="090x xxx xxx"
-                  className="w-full pl-12 pr-4 py-3.5 rounded-2xl border border-white/10 bg-white/10 focus:bg-white/15 focus:ring-1 focus:ring-[#C9A66B] focus:border-[#C9A66B] transition-all text-white placeholder-white/40 outline-none"
-                />
+              <div className="space-y-1">
+                <div className="relative group">
+                  <Phone className="absolute left-4 top-1/2 -translate-y-1/2 text-white/50 w-5 h-5 group-focus-within:text-white transition-colors" />
+                  <input
+                    type="tel"
+                    placeholder="090x xxx xxx"
+                    value={phone}
+                    onChange={(e) => setPhone(e.target.value)}
+                    className={`w-full pl-12 pr-4 py-3.5 rounded-2xl border bg-white/10 border-white/10 focus:bg-white/15 focus:ring-1 focus:ring-[#C9A66B] focus:border-[#C9A66B] transition-all text-white placeholder-white/40 outline-none ${
+                      errors.phone
+                        ? "border-red-400 focus:ring-red-400 focus:border-red-400"
+                        : ""
+                    }`}
+                  />
+                </div>
+                {errors.phone && (
+                  <p className="text-red-400 text-xs">{errors.phone}</p>
+                )}
               </div>
             </div>
 
@@ -106,13 +257,24 @@ export default function Register() {
               <label className="text-white/90 text-sm font-medium px-1">
                 Ngày sinh
               </label>
-              <div className="relative group">
-                <Calendar className="absolute left-4 top-1/2 -translate-y-1/2 text-white/50 w-5 h-5 group-focus-within:text-white transition-colors" />
-                <input
-                  type="text"
-                  placeholder="Ngày / Tháng / Năm"
-                  className="w-full pl-12 pr-4 py-3.5 rounded-2xl border border-white/10 bg-white/10 focus:bg-white/15 focus:ring-1 focus:ring-[#C9A66B] focus:border-[#C9A66B] transition-all text-white placeholder-white/40 outline-none"
-                />
+              <div className="space-y-1">
+                <div className="relative group">
+                  <Calendar className="absolute left-4 top-1/2 -translate-y-1/2 text-white/50 w-5 h-5 group-focus-within:text-white transition-colors" />
+                  <input
+                    type="date"
+                    value={dob}
+                    onChange={(e) => setDob(e.target.value)}
+                    max={today} // hôm nay là giá trị tối đa
+                    className={`w-full pl-12 pr-4 py-3.5 rounded-2xl border bg-white/10 border-white/10 focus:bg-white/15 focus:ring-1 focus:ring-[#C9A66B] focus:border-[#C9A66B] transition-all text-white placeholder-white/40 outline-none ${
+                      errors.dob
+                        ? "border-red-400 focus:ring-red-400 focus:border-red-400"
+                        : ""
+                    }`}
+                  />
+                </div>
+                {errors.dob && (
+                  <p className="text-red-400 text-xs">{errors.dob}</p>
+                )}
               </div>
             </div>
 
@@ -121,24 +283,35 @@ export default function Register() {
               <label className="text-white/90 text-sm font-medium px-1">
                 Mật khẩu
               </label>
-              <div className="relative group">
-                <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-white/50 w-5 h-5 group-focus-within:text-white transition-colors" />
-                <input
-                  type={showPassword ? "text" : "password"}
-                  placeholder="••••••••"
-                  className="w-full pl-12 pr-12 py-3.5 rounded-2xl border border-white/10 bg-white/10 focus:bg-white/15 focus:ring-1 focus:ring-[#C9A66B] focus:border-[#C9A66B] transition-all text-white placeholder-white/40 outline-none"
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-4 top-1/2 -translate-y-1/2 text-white/50 hover:text-white transition-colors"
-                >
-                  {showPassword ? (
-                    <EyeOff className="w-5 h-5" />
-                  ) : (
-                    <Eye className="w-5 h-5" />
-                  )}
-                </button>
+              <div className="space-y-1">
+                <div className="relative group">
+                  <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-white/50 w-5 h-5 group-focus-within:text-white transition-colors" />
+                  <input
+                    type={showPassword ? "text" : "password"}
+                    placeholder="••••••••"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    className={`w-full pl-12 pr-12 py-3.5 rounded-2xl border bg-white/10 border-white/10 focus:bg-white/15 focus:ring-1 focus:ring-[#C9A66B] focus:border-[#C9A66B] transition-all text-white placeholder-white/40 outline-none ${
+                      errors.password
+                        ? "border-red-400 focus:ring-red-400 focus:border-red-400"
+                        : ""
+                    }`}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-4 top-1/2 -translate-y-1/2 text-white/50 hover:text-white transition-colors"
+                  >
+                    {showPassword ? (
+                      <EyeOff className="w-5 h-5" />
+                    ) : (
+                      <Eye className="w-5 h-5" />
+                    )}
+                  </button>
+                </div>
+                {errors.password && (
+                  <p className="text-red-400 text-xs">{errors.password}</p>
+                )}
               </div>
             </div>
 
@@ -147,24 +320,37 @@ export default function Register() {
               <label className="text-white/90 text-sm font-medium px-1">
                 Xác nhận mật khẩu
               </label>
-              <div className="relative group">
-                <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-white/50 w-5 h-5 group-focus-within:text-white transition-colors" />
-                <input
-                  type={showConfirmPassword ? "text" : "password"}
-                  placeholder="••••••••"
-                  className="w-full pl-12 pr-12 py-3.5 rounded-2xl border border-white/10 bg-white/10 focus:bg-white/15 focus:ring-1 focus:ring-[#C9A66B] focus:border-[#C9A66B] transition-all text-white placeholder-white/40 outline-none"
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                  className="absolute right-4 top-1/2 -translate-y-1/2 text-white/50 hover:text-white transition-colors"
-                >
-                  {showConfirmPassword ? (
-                    <EyeOff className="w-5 h-5" />
-                  ) : (
-                    <Eye className="w-5 h-5" />
-                  )}
-                </button>
+              <div className="space-y-1">
+                <div className="relative group">
+                  <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-white/50 w-5 h-5 group-focus-within:text-white transition-colors" />
+                  <input
+                    type={showConfirmPassword ? "text" : "password"}
+                    placeholder="••••••••"
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    className={`w-full pl-12 pr-12 py-3.5 rounded-2xl border bg-white/10 border-white/10 focus:bg-white/15 focus:ring-1 focus:ring-[#C9A66B] focus:border-[#C9A66B] transition-all text-white placeholder-white/40 outline-none ${
+                      errors.confirmPassword
+                        ? "border-red-400 focus:ring-red-400 focus:border-red-400"
+                        : ""
+                    }`}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                    className="absolute right-4 top-1/2 -translate-y-1/2 text-white/50 hover:text-white transition-colors"
+                  >
+                    {showConfirmPassword ? (
+                      <EyeOff className="w-5 h-5" />
+                    ) : (
+                      <Eye className="w-5 h-5" />
+                    )}
+                  </button>
+                </div>
+                {errors.confirmPassword && (
+                  <p className="text-red-400 text-xs">
+                    {errors.confirmPassword}
+                  </p>
+                )}
               </div>
             </div>
           </div>

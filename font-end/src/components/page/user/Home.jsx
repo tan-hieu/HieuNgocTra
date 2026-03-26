@@ -1,6 +1,6 @@
 import {
   ArrowRight,
-  Plus,
+  ShoppingCart,
   Leaf,
   Hand,
   Flower2,
@@ -226,7 +226,8 @@ export default function Home() {
                         {product.price}
                       </span>
                       <button className="bg-primary/5 hover:bg-primary text-primary hover:text-white p-2 rounded-xl transition-colors">
-                        <Plus className="w-4 h-4" />
+                        {/* <Plus className="w-4 h-4" /> */}
+                        <ShoppingCart className="w-4 h-4 sm:w-5 sm:h-5" />
                       </button>
                     </div>
                   </div>

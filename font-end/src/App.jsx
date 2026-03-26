@@ -17,9 +17,14 @@ import ResetPassword from "./components/page/user/ResetPassword";
 import Cart from "./components/page/user/Cart";
 import CheckoutPage from "./components/page/user/CheckoutPage";
 import PaymentSuccess from "./components/page/user/PaymentSuccess";
+import Profile from "./components/page/user/Profile";
 
 function App() {
   const [isScrolled, setIsScrolled] = useState(false);
+  const [currentUser, setCurrentUser] = useState(() => {
+    const stored = localStorage.getItem("user");
+    return stored ? JSON.parse(stored) : null;
+  });
   const navigate = useNavigate();
 
   // hiệu ứng header khi scroll
@@ -46,6 +51,17 @@ function App() {
     window.scrollTo(0, 0);
   };
 
+  const handleLoginSuccess = (userInfo) => {
+    setCurrentUser(userInfo);
+    localStorage.setItem("user", JSON.stringify(userInfo));
+  };
+
+  const handleLogout = () => {
+    setCurrentUser(null);
+    localStorage.removeItem("user");
+    navigate("/");
+  };
+
   return (
     <div className="min-h-screen flex flex-col bg-background-light">
       <Header
@@ -53,16 +69,20 @@ function App() {
         handleLogoClick={handleLogoClick}
         handleLoginClick={handleLoginClick}
         handleCartClick={handleCartClick}
+        currentUser={currentUser}
+        onLogout={handleLogout}
       />
 
       <ScrollToTop />
-      {/* phần nội dung giữa, đẩy xuống dưới header */}
       <main>
         <Routes>
           <Route path="/" element={<Home />} />
           <Route path="/products" element={<AllProductsPage />} />
           <Route path="/products/:productId" element={<ProductDetailPage />} />
-          <Route path="/login" element={<Login />} />
+          <Route
+            path="/login"
+            element={<Login onLoginSuccess={handleLoginSuccess} />}
+          />
           <Route path="/register" element={<Register />} />
           <Route path="/reset" element={<Reset />} />
           <Route path="/otp" element={<OTP />} />
@@ -70,6 +90,7 @@ function App() {
           <Route path="/cart" element={<Cart />} />
           <Route path="/checkout" element={<CheckoutPage />} />
           <Route path="/payment-success" element={<PaymentSuccess />} />
+          <Route path="/profile" element={<Profile />} />
         </Routes>
       </main>
 
