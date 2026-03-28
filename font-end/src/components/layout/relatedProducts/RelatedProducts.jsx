@@ -1,6 +1,7 @@
 import { ArrowRight, ShoppingCart } from "lucide-react";
 // eslint-disable-next-line
 import { motion } from "motion/react";
+import { addToCart } from "../../../utils/cart";
 
 export default function RelatedProducts({ products = [] }) {
   return (
@@ -33,7 +34,14 @@ export default function RelatedProducts({ products = [] }) {
                 referrerPolicy="no-referrer"
               />
 
-              <button className="absolute bottom-4 right-4 bg-white/90 backdrop-blur p-3 rounded-full shadow-lg opacity-0 group-hover:opacity-100 transition-opacity">
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  addToCart(product);
+                  alert(`${product.name} đã được thêm vào giỏ hàng`);
+                }}
+                className="absolute bottom-4 right-4 bg-white/90 backdrop-blur p-3 rounded-full shadow-lg opacity-0 group-hover:opacity-100 transition-opacity"
+              >
                 <ShoppingCart className="w-5 h-5 text-primary" />
               </button>
             </div>

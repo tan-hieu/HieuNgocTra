@@ -18,7 +18,8 @@ public class UserDaoImpl implements UserDao {
     @Override
     @Transactional
     public void save(User user) {
-        entityManager.persist(user);
+        User merged = entityManager.merge(user);
+        entityManager.flush(); // ép commit/flush ngay lập tức để thấy lỗi DB (constraint) ngay
     }
 
     @Override

@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 // eslint-disable-next-line
 import { motion } from "motion/react";
 import FilterSidebar from "../../layout/filterSidebar/FilterSidebar";
+import { addToCart } from "../../../utils/cart";
 
 const products = [
   {
@@ -214,7 +215,15 @@ export default function AllProductsPage() {
                         {product.price}
                       </span>
 
-                      <button className="h-10 w-10 shrink-0 rounded-xl border border-primary/10 bg-[#faf7f2] text-primary flex items-center justify-center shadow-sm transition-all hover:bg-primary hover:text-white hover:scale-105">
+                      <button
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          addToCart(product);
+                          alert(`${product.name} đã được thêm vào giỏ hàng`);
+                        }}
+                        className="h-10 w-10 shrink-0 rounded-xl border border-primary/10 bg-[#faf7f2] text-primary flex items-center justify-center shadow-sm transition-all hover:bg-primary hover:text-white hover:scale-105"
+                      >
                         <ShoppingCart className="w-4 h-4 sm:w-5 sm:h-5" />
                       </button>
                     </div>

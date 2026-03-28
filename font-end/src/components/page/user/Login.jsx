@@ -81,19 +81,28 @@ export default function Login({ onLoginSuccess }) {
         return;
       }
 
-      if (onLoginSuccess) {
-        onLoginSuccess({
-          fullName: data.fullName,
-          role: data.role,
-          email,
-        });
+      const loggedInUser = data?.user ?? data;
+
+      if (onLoginSuccess && loggedInUser) {
+        onLoginSuccess(loggedInUser);
       }
 
-      navigate("/");
+      // Điều hướng theo role: nếu ADMIN thì vào /admin
+      if (loggedInUser && loggedInUser.roleName === "ADMIN") {
+        navigate("/admin");
+      } else {
+        navigate("/");
+      }
     } catch (err) {
       console.error(err);
       setLoginError("Lỗi kết nối server");
     }
+  };
+
+  const handleGoogleLogin = () => {
+    console.log("🔵 Google login button clicked");
+    // Redirect tới Spring Security OAuth2 endpoint
+    window.location.href = "http://localhost:8080/oauth2/authorization/google";
   };
 
   return (
@@ -243,9 +252,19 @@ export default function Login({ onLoginSuccess }) {
 
         {/* Social Buttons */}
         <div className="grid grid-cols-2 gap-5 mb-8">
-          <button className="flex items-center justify-center gap-3 bg-white/5 border border-white/10 text-white py-4 rounded-2xl hover:bg-white/15 transition-all font-bold text-xs">
+          <button
+            type="button"
+            onClick={handleGoogleLogin}
+            className="flex items-center justify-center gap-3 bg-white/5 border border-white/10 text-white py-4 rounded-2xl hover:bg-white/15 transition-all font-bold text-xs"
+            aria-label="Đăng nhập bằng Google"
+          >
             {/* Google icon như bản gốc */}
-            <svg className="w-4 h-4" viewBox="0 0 24 24">
+            <svg
+              className="w-4 h-4"
+              viewBox="0 0 24 24"
+              aria-hidden="true"
+              focusable="false"
+            >
               <path
                 fill="currentColor"
                 d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
@@ -265,6 +284,7 @@ export default function Login({ onLoginSuccess }) {
             </svg>
             Google
           </button>
+
           <button className="flex items-center justify-center gap-3 bg-white/5 border border-white/10 text-white py-4 rounded-2xl hover:bg-white/15 transition-all font-bold text-xs">
             <Facebook className="w-4 h-4 fill-white" />
             Facebook

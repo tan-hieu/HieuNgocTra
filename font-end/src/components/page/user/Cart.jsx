@@ -16,9 +16,14 @@ import {
 } from "lucide-react";
 // eslint-disable-next-line
 import { motion } from "motion/react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import RelatedProducts from "../../layout/relatedProducts/RelatedProducts";
 import { useNavigate } from "react-router-dom";
+import {
+  getCart,
+  updateCartItemQuantity,
+  removeFromCart,
+} from "../../../utils/cart";
 
 const RECOMMENDED_PRODUCTS = [
   {
@@ -84,8 +89,14 @@ const relatedProducts = [
 ];
 
 export default function Cart() {
-  const [quantity, setQuantity] = useState(1);
+  const [cartItems, setCartItems] = useState([]);
   const navigate = useNavigate();
+
+  useEffect(() => {
+    setCartItems(getCart());
+  }, []);
+
+  const reloadCart = () => setCartItems(getCart());
 
   const handleContinueShopping = () => {
     navigate("/products");
@@ -95,6 +106,45 @@ export default function Cart() {
     navigate("/checkout");
     window.scrollTo(0, 0);
   };
+
+  const parsePrice = (price) => {
+    if (typeof price === "number") return price;
+    if (!price) return 0;
+    const digits = String(price).replace(/[^\d]/g, "");
+    return parseInt(digits || "0", 10);
+  };
+
+  const formatCurrency = (amount) => {
+    return amount.toLocaleString("vi-VN") + "đ";
+  };
+
+  const handleIncrease = (id) => {
+    const item = cartItems.find((i) => i.id === id);
+    if (!item) return;
+    updateCartItemQuantity(id, (item.quantity || 1) + 1);
+    reloadCart();
+  };
+
+  const handleDecrease = (id) => {
+    const item = cartItems.find((i) => i.id === id);
+    if (!item) return;
+    if ((item.quantity || 1) <= 1) {
+      removeFromCart(id);
+    } else {
+      updateCartItemQuantity(id, item.quantity - 1);
+    }
+    reloadCart();
+  };
+
+  const handleRemove = (id) => {
+    removeFromCart(id);
+    reloadCart();
+  };
+
+  const subTotal = cartItems.reduce(
+    (sum, item) => sum + parsePrice(item.price) * (item.quantity || 1),
+    0,
+  );
 
   return (
     <div className="min-h-screen flex flex-col">
@@ -125,72 +175,95 @@ export default function Cart() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-primary/5">
-                    <tr className="group">
-                      <td className="px-6 py-8">
-                        <div className="flex items-center gap-6">
-                          <div className="w-24 h-24 rounded-xl overflow-hidden shadow-sm flex-shrink-0">
-                            <img
-                              src="https://picsum.photos/seed/tea-leaves/200/200"
-                              alt="Trà Shan Tuyết"
-                              className="w-full h-full object-cover"
-                              referrerPolicy="no-referrer"
-                            />
-                          </div>
-                          <div>
-                            <h3
-                              className="font-serif text-lg font-bold text-slate-800 group-hover:text-primary transition-colors tracking-tight"
-                              style={{
-                                fontFamily:
-                                  '"Lora", system-ui, "Segoe UI", sans-serif',
-                              }}
-                            >
-                              Trà Shan Tuyết Cổ Thụ
-                            </h3>
-                            <p className="text-xs text-slate-500 mt-1">
-                              Hộp thiếc cao cấp 200g
-                            </p>
-                          </div>
-                        </div>
-                      </td>
-                      <td className="px-6 py-8 text-center hidden md:table-cell">
-                        <span className="text-slate-600 font-medium">
-                          1.200.000đ
-                        </span>
-                      </td>
-                      <td className="px-6 py-8">
-                        <div className="flex items-center justify-center">
-                          <div className="flex items-center border border-primary/20 rounded-lg overflow-hidden bg-bg-light/30">
-                            <button
-                              onClick={() =>
-                                setQuantity(Math.max(1, quantity - 1))
-                              }
-                              className="p-2 hover:bg-primary/10 text-primary transition-colors"
-                            >
-                              <Minus className="w-4 h-4" />
-                            </button>
-                            <span className="w-10 text-center text-sm font-bold">
-                              {quantity}
+                    {cartItems.length === 0 ? (
+                      <tr>
+                        <td
+                          colSpan={5}
+                          className="px-6 py-12 text-center text-slate-500"
+                        >
+                          Giỏ hàng trống
+                        </td>
+                      </tr>
+                    ) : (
+                      cartItems.map((item) => (
+                        <tr key={item.id} className="group">
+                          <td className="px-6 py-8">
+                            <div className="flex items-center gap-6">
+                              <div className="w-24 h-24 rounded-xl overflow-hidden shadow-sm flex-shrink-0">
+                                <img
+                                  src={
+                                    item.image ||
+                                    "https://picsum.photos/seed/tea-leaves/200/200"
+                                  }
+                                  alt={item.name}
+                                  className="w-full h-full object-cover"
+                                  referrerPolicy="no-referrer"
+                                />
+                              </div>
+                              <div>
+                                <h3
+                                  className="font-serif text-lg font-bold text-slate-800 group-hover:text-primary transition-colors tracking-tight"
+                                  style={{
+                                    fontFamily:
+                                      '"Lora", system-ui, "Segoe UI", sans-serif',
+                                  }}
+                                >
+                                  {item.name}
+                                </h3>
+                                <p className="text-xs text-slate-500 mt-1">
+                                  Sản phẩm
+                                </p>
+                              </div>
+                            </div>
+                          </td>
+
+                          <td className="px-6 py-8 text-center hidden md:table-cell">
+                            <span className="text-slate-600 font-medium">
+                              {item.price}
                             </span>
+                          </td>
+
+                          <td className="px-6 py-8">
+                            <div className="flex items-center justify-center">
+                              <div className="flex items-center border border-primary/20 rounded-lg overflow-hidden bg-bg-light/30">
+                                <button
+                                  onClick={() => handleDecrease(item.id)}
+                                  className="p-2 hover:bg-primary/10 text-primary transition-colors"
+                                >
+                                  <Minus className="w-4 h-4" />
+                                </button>
+                                <span className="w-10 text-center text-sm font-bold">
+                                  {item.quantity}
+                                </span>
+                                <button
+                                  onClick={() => handleIncrease(item.id)}
+                                  className="p-2 hover:bg-primary/10 text-primary transition-colors"
+                                >
+                                  <Plus className="w-4 h-4" />
+                                </button>
+                              </div>
+                            </div>
+                          </td>
+
+                          <td className="px-6 py-8 text-right">
+                            <span className="text-primary font-bold text-lg">
+                              {formatCurrency(
+                                parsePrice(item.price) * (item.quantity || 1),
+                              )}
+                            </span>
+                          </td>
+
+                          <td className="px-6 py-8 text-center">
                             <button
-                              onClick={() => setQuantity(quantity + 1)}
-                              className="p-2 hover:bg-primary/10 text-primary transition-colors"
+                              onClick={() => handleRemove(item.id)}
+                              className="p-2 text-slate-300 hover:text-red-500 transition-colors"
                             >
-                              <Plus className="w-4 h-4" />
+                              <Trash2 className="w-5 h-5" />
                             </button>
-                          </div>
-                        </div>
-                      </td>
-                      <td className="px-6 py-8 text-right">
-                        <span className="text-primary font-bold text-lg">
-                          {(1200000 * quantity).toLocaleString("vi-VN")}đ
-                        </span>
-                      </td>
-                      <td className="px-6 py-8 text-center">
-                        <button className="p-2 text-slate-300 hover:text-red-500 transition-colors">
-                          <Trash2 className="w-5 h-5" />
-                        </button>
-                      </td>
-                    </tr>
+                          </td>
+                        </tr>
+                      ))
+                    )}
                   </tbody>
                 </table>
               </div>
@@ -223,7 +296,7 @@ export default function Cart() {
                 <div className="flex justify-between items-center text-slate-600">
                   <span>Tạm tính</span>
                   <span className="font-medium text-slate-900">
-                    {(1200000 * quantity).toLocaleString("vi-VN")}đ
+                    {formatCurrency(subTotal)}
                   </span>
                 </div>
                 <div className="flex justify-between items-center text-slate-600">
@@ -241,7 +314,7 @@ export default function Cart() {
                         (Đã bao gồm VAT)
                       </p>
                       <span className="text-3xl font-bold text-primary">
-                        {(1200000 * quantity).toLocaleString("vi-VN")}đ
+                        {formatCurrency(subTotal)}
                       </span>
                     </div>
                   </div>

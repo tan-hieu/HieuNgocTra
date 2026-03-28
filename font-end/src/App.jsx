@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Routes, Route, useNavigate } from "react-router-dom";
+import { Routes, Route, useNavigate, Navigate } from "react-router-dom";
 
 import "./App.css";
 import ScrollToTop from "./ScrollToTop";
@@ -19,6 +19,8 @@ import CheckoutPage from "./components/page/user/CheckoutPage";
 import PaymentSuccess from "./components/page/user/PaymentSuccess";
 import Profile from "./components/page/user/Profile";
 
+import AdminLayout from "./components/page/admin/AdminLayout";
+
 function App() {
   const [isScrolled, setIsScrolled] = useState(false);
   const [currentUser, setCurrentUser] = useState(() => {
@@ -27,6 +29,8 @@ function App() {
   });
   const navigate = useNavigate();
 
+  const isAdmin = currentUser && currentUser.roleName === "ADMIN";
+
   // hiệu ứng header khi scroll
   useEffect(() => {
     const handleScroll = () => {
@@ -34,6 +38,74 @@ function App() {
     };
     window.addEventListener("scroll", handleScroll);
     return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
+
+  // GỌI /me khi:
+  // 1) đã có localStorage user, hoặc
+  // 2) vừa quay về từ Google login
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const cameFromGoogle = params.get("oauth2") === "success";
+    const hasLocalUser = !!localStorage.getItem("user");
+
+    if (!cameFromGoogle && !hasLocalUser) {
+      return;
+    }
+
+    async function fetchMe() {
+      try {
+        const res = await fetch("http://localhost:8080/api/auth/me", {
+          method: "GET",
+          credentials: "include",
+          headers: {
+            Accept: "application/json",
+            "Content-Type": "application/json",
+          },
+        });
+
+        if (res.status === 401) {
+          setCurrentUser(null);
+          localStorage.removeItem("user");
+          return;
+        }
+
+        if (!res.ok) {
+          console.log("✗ /me returned", res.status);
+          setCurrentUser(null);
+          localStorage.removeItem("user");
+          return;
+        }
+
+        const data = await res.json();
+        console.log("✓ /me response:", data);
+
+        const userData = data?.user ?? data;
+        if (userData && userData.id) {
+          setCurrentUser(userData);
+          localStorage.setItem("user", JSON.stringify(userData));
+          console.log("✓ User set from /me:", userData.email);
+          // Nếu là admin thì chuyển sang trang admin
+          if (userData.roleName === "ADMIN") {
+            navigate("/admin");
+          }
+        } else {
+          setCurrentUser(null);
+          localStorage.removeItem("user");
+        }
+
+        // Xóa query param sau khi xử lý xong
+        if (cameFromGoogle) {
+          const cleanUrl = window.location.origin + window.location.pathname;
+          window.history.replaceState({}, document.title, cleanUrl);
+        }
+      } catch (err) {
+        console.error("✗ fetchMe error:", err);
+        setCurrentUser(null);
+        localStorage.removeItem("user");
+      }
+    }
+
+    fetchMe();
   }, []);
 
   const handleLoginClick = () => {
@@ -56,7 +128,15 @@ function App() {
     localStorage.setItem("user", JSON.stringify(userInfo));
   };
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    try {
+      await fetch("http://localhost:8080/api/auth/logout", {
+        method: "POST",
+        credentials: "include",
+      });
+    } catch (e) {
+      console.warn("logout request failed", e);
+    }
     setCurrentUser(null);
     localStorage.removeItem("user");
     navigate("/");
@@ -64,14 +144,16 @@ function App() {
 
   return (
     <div className="min-h-screen flex flex-col bg-background-light">
-      <Header
-        isScrolled={isScrolled}
-        handleLogoClick={handleLogoClick}
-        handleLoginClick={handleLoginClick}
-        handleCartClick={handleCartClick}
-        currentUser={currentUser}
-        onLogout={handleLogout}
-      />
+      {!isAdmin && (
+        <Header
+          isScrolled={isScrolled}
+          handleLogoClick={handleLogoClick}
+          handleLoginClick={handleLoginClick}
+          handleCartClick={handleCartClick}
+          currentUser={currentUser}
+          onLogout={handleLogout}
+        />
+      )}
 
       <ScrollToTop />
       <main>
@@ -81,7 +163,17 @@ function App() {
           <Route path="/products/:productId" element={<ProductDetailPage />} />
           <Route
             path="/login"
-            element={<Login onLoginSuccess={handleLoginSuccess} />}
+            element={
+              currentUser ? (
+                currentUser.roleName === "ADMIN" ? (
+                  <Navigate to="/admin" replace />
+                ) : (
+                  <Navigate to="/" replace />
+                )
+              ) : (
+                <Login onLoginSuccess={handleLoginSuccess} />
+              )
+            }
           />
           <Route path="/register" element={<Register />} />
           <Route path="/reset" element={<Reset />} />
@@ -91,10 +183,21 @@ function App() {
           <Route path="/checkout" element={<CheckoutPage />} />
           <Route path="/payment-success" element={<PaymentSuccess />} />
           <Route path="/profile" element={<Profile />} />
+
+          <Route
+            path="/admin"
+            element={
+              isAdmin ? (
+                <AdminLayout />
+              ) : (
+                <Navigate to="/login" state={{ from: "/admin" }} replace />
+              )
+            }
+          />
         </Routes>
       </main>
 
-      <Footer />
+      {!isAdmin && <Footer />}
     </div>
   );
 }

@@ -10,6 +10,7 @@ import {
 // eslint-disable-next-line
 import { motion } from "motion/react";
 import { Link } from "react-router-dom";
+import { addToCart } from "../../../utils/cart";
 
 export default function Home() {
   return (
@@ -225,8 +226,15 @@ export default function Home() {
                       <span className="text-primary font-black text-lg">
                         {product.price}
                       </span>
-                      <button className="bg-primary/5 hover:bg-primary text-primary hover:text-white p-2 rounded-xl transition-colors">
-                        {/* <Plus className="w-4 h-4" /> */}
+                      <button
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          addToCart(product);
+                          alert(`${product.name} đã được thêm vào giỏ hàng`);
+                        }}
+                        className="bg-primary/5 hover:bg-primary text-primary hover:text-white p-2 rounded-xl transition-colors"
+                      >
                         <ShoppingCart className="w-4 h-4 sm:w-5 sm:h-5" />
                       </button>
                     </div>
