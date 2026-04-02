@@ -21,6 +21,13 @@ import Profile from "./components/page/user/Profile";
 
 import AdminLayout from "./components/page/admin/AdminLayout";
 
+function RequireAuth({ isLoggedIn, children }) {
+  if (!isLoggedIn) {
+    return <Navigate to="/login" replace />;
+  }
+  return children;
+}
+
 function App() {
   const [isScrolled, setIsScrolled] = useState(false);
   const [currentUser, setCurrentUser] = useState(() => {
@@ -30,6 +37,7 @@ function App() {
   const navigate = useNavigate();
 
   const isAdmin = currentUser && currentUser.roleName === "ADMIN";
+  const isLoggedIn = !!currentUser;
 
   // hiệu ứng header khi scroll
   useEffect(() => {
@@ -158,9 +166,13 @@ function App() {
       <ScrollToTop />
       <main>
         <Routes>
+          {/* PUBLIC: không cần đăng nhập */}
           <Route path="/" element={<Home />} />
-          <Route path="/products" element={<AllProductsPage />} />
           <Route path="/products/:productId" element={<ProductDetailPage />} />
+          <Route path="/cart" element={<Cart />} />
+          <Route path="/products" element={<AllProductsPage />} />
+
+          {/* AUTH PAGES: luôn cho vào được khi chưa đăng nhập */}
           <Route
             path="/login"
             element={
@@ -179,19 +191,48 @@ function App() {
           <Route path="/reset" element={<Reset />} />
           <Route path="/otp" element={<OTP />} />
           <Route path="/reset-password" element={<ResetPassword />} />
-          <Route path="/cart" element={<Cart />} />
-          <Route path="/checkout" element={<CheckoutPage />} />
-          <Route path="/payment-success" element={<PaymentSuccess />} />
-          <Route path="/profile" element={<Profile />} />
 
+          {/* USER PROTECTED: phải đăng nhập mới vào được */}
+          {/* <Route
+            path="/products"
+            element={
+              <RequireAuth isLoggedIn={isLoggedIn}>
+                <AllProductsPage />
+              </RequireAuth>
+            }
+          /> */}
+          <Route
+            path="/checkout"
+            element={
+              <RequireAuth isLoggedIn={isLoggedIn}>
+                <CheckoutPage />
+              </RequireAuth>
+            }
+          />
+          <Route
+            path="/payment-success"
+            element={
+              <RequireAuth isLoggedIn={isLoggedIn}>
+                <PaymentSuccess />
+              </RequireAuth>
+            }
+          />
+          <Route
+            path="/profile"
+            element={
+              <RequireAuth isLoggedIn={isLoggedIn}>
+                <Profile />
+              </RequireAuth>
+            }
+          />
+
+          {/* ADMIN: phải đăng nhập, và là ADMIN */}
           <Route
             path="/admin"
             element={
-              isAdmin ? (
-                <AdminLayout />
-              ) : (
-                <Navigate to="/login" state={{ from: "/admin" }} replace />
-              )
+              <RequireAuth isLoggedIn={isLoggedIn}>
+                {isAdmin ? <AdminLayout /> : <Navigate to="/" replace />}
+              </RequireAuth>
             }
           />
         </Routes>

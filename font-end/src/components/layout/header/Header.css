@@ -52,11 +52,17 @@ body.scrolled .nav-link {
 
 /* style chung cho tất cả link */
 .nav-link {
-  padding-bottom: 0.25rem; /* giống pb-1 */
+  padding-bottom: 0.25rem;
   border-bottom: 2px solid transparent;
   transition:
     color 150ms ease,
     border-color 150ms ease;
+
+  /* THÊM / SỬA PHẦN NÀY */
+  font-family: "Playfair Display", "Cormorant Garamond", serif;
+  font-size: 0.85rem; /* nhỏ gọn, thanh thoát */
+  letter-spacing: 0.05em; /* giãn nhẹ cho sang */
+  text-transform: uppercase; /* hoặc "none" nếu bạn muốn giữ nguyên hoa/thường */
 }
 
 /* màu & gạch chân khi hover */

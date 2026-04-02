@@ -140,14 +140,10 @@ function StatCard({
 export default function DashboardMain() {
   return (
     <div className="flex min-h-screen bg-surface">
-      {/* Sidebar */}
       <Sidebar />
-
       {/* Khu vực nội dung bên phải */}
       <div className="flex-1 ml-72">
-        {/* Header */}
         <AdminHeader />
-
         {/* Main Content */}
         <main>
           <div className="p-12">

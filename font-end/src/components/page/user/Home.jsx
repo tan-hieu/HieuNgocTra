@@ -7,14 +7,38 @@ import {
   Star,
   Calendar,
 } from "lucide-react";
+import { useState } from "react";
 // eslint-disable-next-line
 import { motion } from "motion/react";
 import { Link } from "react-router-dom";
 import { addToCart } from "../../../utils/cart";
 
 export default function Home() {
+  const [toast, setToast] = useState({ open: false, message: "" });
+
+  const handleAddToCart = (e, product) => {
+    e.preventDefault();
+    e.stopPropagation();
+    addToCart(product);
+    setToast({
+      open: true,
+      message: `${product.name} đã được thêm vào giỏ hàng`,
+    });
+    setTimeout(() => {
+      setToast((prev) => ({ ...prev, open: false }));
+    }, 2000);
+  };
+
   return (
     <>
+      {toast.open && (
+        <div className="fixed top-6 right-6 z-50">
+          <div className="bg-primary text-white px-4 py-2 rounded-lg shadow-lg text-sm">
+            {toast.message}
+          </div>
+        </div>
+      )}
+
       {/* Hero Section */}
       <section className="relative w-full min-h-[90vh] flex items-center justify-center overflow-hidden pt-28">
         <div
@@ -227,12 +251,7 @@ export default function Home() {
                         {product.price}
                       </span>
                       <button
-                        onClick={(e) => {
-                          e.preventDefault();
-                          e.stopPropagation();
-                          addToCart(product);
-                          alert(`${product.name} đã được thêm vào giỏ hàng`);
-                        }}
+                        onClick={(e) => handleAddToCart(e, product)}
                         className="bg-primary/5 hover:bg-primary text-primary hover:text-white p-2 rounded-xl transition-colors"
                       >
                         <ShoppingCart className="w-4 h-4 sm:w-5 sm:h-5" />

@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { ChevronLeft, ChevronRight, ShoppingCart } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 // eslint-disable-next-line
@@ -118,6 +119,25 @@ const products = [
 
 export default function AllProductsPage() {
   const navigate = useNavigate();
+  const [toast, setToast] = useState({
+    open: false,
+    message: "",
+  });
+
+  const handleAddToCart = (e, product) => {
+    e.preventDefault();
+    e.stopPropagation();
+    addToCart(product);
+
+    setToast({
+      open: true,
+      message: `${product.name} đã được thêm vào giỏ hàng`,
+    });
+
+    setTimeout(() => {
+      setToast((prev) => ({ ...prev, open: false }));
+    }, 2000);
+  };
 
   return (
     <div className="min-h-screen bg-[#f7f1e7] text-slate-800">
@@ -216,12 +236,7 @@ export default function AllProductsPage() {
                       </span>
 
                       <button
-                        onClick={(e) => {
-                          e.preventDefault();
-                          e.stopPropagation();
-                          addToCart(product);
-                          alert(`${product.name} đã được thêm vào giỏ hàng`);
-                        }}
+                        onClick={(e) => handleAddToCart(e, product)}
                         className="h-10 w-10 shrink-0 rounded-xl border border-primary/10 bg-[#faf7f2] text-primary flex items-center justify-center shadow-sm transition-all hover:bg-primary hover:text-white hover:scale-105"
                       >
                         <ShoppingCart className="w-4 h-4 sm:w-5 sm:h-5" />
@@ -263,6 +278,14 @@ export default function AllProductsPage() {
           </section>
         </div>
       </main>
+
+      {toast.open && (
+        <div className="fixed top-6 right-6 z-50">
+          <div className="bg-primary text-white px-4 py-2 rounded-lg shadow-lg text-sm">
+            {toast.message}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -8,6 +8,7 @@ export default function AdminLayout() {
     <div>
       {/* <Sidebar />
       <AdminHeader /> */}
+
       <DashboardMain />
     </div>
   );

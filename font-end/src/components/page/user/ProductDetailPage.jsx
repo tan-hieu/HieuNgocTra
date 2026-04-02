@@ -14,6 +14,7 @@ import {
 // eslint-disable-next-line
 import { motion, AnimatePresence } from "motion/react";
 import RelatedProducts from "../../layout/relatedProducts/RelatedProducts";
+import { addToCart } from "../../../utils/cart";
 
 const products = [
   {
@@ -62,6 +63,23 @@ export default function ProductDetailPage() {
 
   const [quantity, setQuantity] = useState(1);
   const [activeTab, setActiveTab] = useState("story");
+  const [toast, setToast] = useState({
+    open: false,
+    message: "",
+  });
+
+  const handleAddToCart = () => {
+    addToCart(product, quantity);
+
+    setToast({
+      open: true,
+      message: `${product.name} (x${quantity}) đã được thêm vào giỏ hàng`,
+    });
+
+    setTimeout(() => {
+      setToast((prev) => ({ ...prev, open: false }));
+    }, 2000);
+  };
 
   const relatedProducts = [
     {
@@ -233,7 +251,10 @@ export default function ProductDetailPage() {
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <button className="h-14 border-2 border-primary text-primary font-bold uppercase tracking-widest rounded-xl hover:bg-primary/5 transition-colors font-sans">
+                <button
+                  onClick={handleAddToCart}
+                  className="h-14 border-2 border-primary text-primary font-bold uppercase tracking-widest rounded-xl hover:bg-primary/5 transition-colors font-sans"
+                >
                   Thêm vào giỏ hàng
                 </button>
 
@@ -447,6 +468,14 @@ export default function ProductDetailPage() {
         {/* sản phẩm liên quan */}
         <RelatedProducts products={relatedProducts} />
       </main>
+
+      {toast.open && (
+        <div className="fixed top-6 right-6 z-50">
+          <div className="bg-primary text-white px-4 py-2 rounded-lg shadow-lg text-sm">
+            {toast.message}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
