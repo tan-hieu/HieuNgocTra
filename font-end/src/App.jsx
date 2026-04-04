@@ -20,10 +20,46 @@ import PaymentSuccess from "./components/page/user/PaymentSuccess";
 import Profile from "./components/page/user/Profile";
 
 import AdminLayout from "./components/page/admin/AdminLayout";
+import DashboardMain from "./components/page/admin/DashboardMain";
+import { ProductsPage } from "./components/page/admin/ProductsPage";
+import { AddProductPage } from "./components/page/admin/AddProductPage";
+import { OrdersPage } from "./components/page/admin/OrdersPage";
+import { CustomersPage } from "./components/page/admin/CustomersPage";
+import { AddCustomerPage } from "./components/page/admin/AddCustomerPage";
 
 function RequireAuth({ isLoggedIn, children }) {
   if (!isLoggedIn) {
     return <Navigate to="/login" replace />;
+  }
+  return children;
+}
+
+// Component dùng để auto-logout rồi chuyển sang /login
+function ForceLogoutToLogin({ onForceLogout }) {
+  useEffect(() => {
+    if (onForceLogout) {
+      onForceLogout();
+    }
+  }, [onForceLogout]);
+
+  return <Navigate to="/login" replace />;
+}
+
+// Chặn ADMIN truy cập các route dành cho user
+function BlockAdminRoute({ isAdmin, onForceLogout, children }) {
+  if (isAdmin) {
+    return <ForceLogoutToLogin onForceLogout={onForceLogout} />;
+  }
+  return children;
+}
+
+// Chặn USER thường truy cập các route admin
+function AdminRoute({ isAdmin, isLoggedIn, onForceLogout, children }) {
+  if (!isLoggedIn) {
+    return <Navigate to="/login" replace />;
+  }
+  if (!isAdmin) {
+    return <ForceLogoutToLogin onForceLogout={onForceLogout} />;
   }
   return children;
 }
@@ -92,8 +128,8 @@ function App() {
           setCurrentUser(userData);
           localStorage.setItem("user", JSON.stringify(userData));
           console.log("✓ User set from /me:", userData.email);
-          // Nếu là admin thì chuyển sang trang admin
-          if (userData.roleName === "ADMIN") {
+          // Nếu là admin và vừa quay về từ Google thì đẩy sang /admin
+          if (userData.roleName === "ADMIN" && cameFromGoogle) {
             navigate("/admin");
           }
         } else {
@@ -101,7 +137,6 @@ function App() {
           localStorage.removeItem("user");
         }
 
-        // Xóa query param sau khi xử lý xong
         if (cameFromGoogle) {
           const cleanUrl = window.location.origin + window.location.pathname;
           window.history.replaceState({}, document.title, cleanUrl);
@@ -136,6 +171,7 @@ function App() {
     localStorage.setItem("user", JSON.stringify(userInfo));
   };
 
+  // Logout khi bấm nút trong header user
   const handleLogout = async () => {
     try {
       await fetch("http://localhost:8080/api/auth/logout", {
@@ -150,8 +186,23 @@ function App() {
     navigate("/");
   };
 
+  // Logout dùng cho cả 2 guard (admin→user, user→admin)
+  const forceLogoutForGuard = async () => {
+    try {
+      await fetch("http://localhost:8080/api/auth/logout", {
+        method: "POST",
+        credentials: "include",
+      });
+    } catch (e) {
+      console.warn("logout request failed", e);
+    }
+    setCurrentUser(null);
+    localStorage.removeItem("user");
+  };
+
   return (
     <div className="min-h-screen flex flex-col bg-background-light">
+      {/* Header/Footer user chỉ hiện khi không phải admin */}
       {!isAdmin && (
         <Header
           isScrolled={isScrolled}
@@ -166,75 +217,134 @@ function App() {
       <ScrollToTop />
       <main>
         <Routes>
-          {/* PUBLIC: không cần đăng nhập */}
-          <Route path="/" element={<Home />} />
-          <Route path="/products/:productId" element={<ProductDetailPage />} />
-          <Route path="/cart" element={<Cart />} />
-          <Route path="/products" element={<AllProductsPage />} />
+          {/* PUBLIC: không cần đăng nhập, nhưng ADMIN vào sẽ bị logout + đưa sang /login */}
+          <Route
+            path="/"
+            element={
+              <BlockAdminRoute
+                isAdmin={isAdmin}
+                onForceLogout={forceLogoutForGuard}
+              >
+                <Home />
+              </BlockAdminRoute>
+            }
+          />
+          <Route
+            path="/products/:productId"
+            element={
+              <BlockAdminRoute
+                isAdmin={isAdmin}
+                onForceLogout={forceLogoutForGuard}
+              >
+                <ProductDetailPage />
+              </BlockAdminRoute>
+            }
+          />
+          <Route
+            path="/cart"
+            element={
+              <BlockAdminRoute
+                isAdmin={isAdmin}
+                onForceLogout={forceLogoutForGuard}
+              >
+                <Cart />
+              </BlockAdminRoute>
+            }
+          />
+          <Route
+            path="/products"
+            element={
+              <BlockAdminRoute
+                isAdmin={isAdmin}
+                onForceLogout={forceLogoutForGuard}
+              >
+                <AllProductsPage />
+              </BlockAdminRoute>
+            }
+          />
 
-          {/* AUTH PAGES: luôn cho vào được khi chưa đăng nhập */}
+          {/* AUTH PAGES – luôn hiện form login, không tự redirect */}
           <Route
             path="/login"
-            element={
-              currentUser ? (
-                currentUser.roleName === "ADMIN" ? (
-                  <Navigate to="/admin" replace />
-                ) : (
-                  <Navigate to="/" replace />
-                )
-              ) : (
-                <Login onLoginSuccess={handleLoginSuccess} />
-              )
-            }
+            element={<Login onLoginSuccess={handleLoginSuccess} />}
           />
           <Route path="/register" element={<Register />} />
           <Route path="/reset" element={<Reset />} />
           <Route path="/otp" element={<OTP />} />
           <Route path="/reset-password" element={<ResetPassword />} />
 
-          {/* USER PROTECTED: phải đăng nhập mới vào được */}
-          {/* <Route
-            path="/products"
-            element={
-              <RequireAuth isLoggedIn={isLoggedIn}>
-                <AllProductsPage />
-              </RequireAuth>
-            }
-          /> */}
+          {/* USER PROTECTED: ADMIN cũng bị chặn qua BlockAdminRoute */}
           <Route
             path="/checkout"
             element={
-              <RequireAuth isLoggedIn={isLoggedIn}>
-                <CheckoutPage />
-              </RequireAuth>
+              <BlockAdminRoute
+                isAdmin={isAdmin}
+                onForceLogout={forceLogoutForGuard}
+              >
+                <RequireAuth isLoggedIn={isLoggedIn}>
+                  <CheckoutPage />
+                </RequireAuth>
+              </BlockAdminRoute>
             }
           />
           <Route
             path="/payment-success"
             element={
-              <RequireAuth isLoggedIn={isLoggedIn}>
-                <PaymentSuccess />
-              </RequireAuth>
+              <BlockAdminRoute
+                isAdmin={isAdmin}
+                onForceLogout={forceLogoutForGuard}
+              >
+                <RequireAuth isLoggedIn={isLoggedIn}>
+                  <PaymentSuccess />
+                </RequireAuth>
+              </BlockAdminRoute>
             }
           />
           <Route
             path="/profile"
             element={
-              <RequireAuth isLoggedIn={isLoggedIn}>
-                <Profile />
-              </RequireAuth>
+              <BlockAdminRoute
+                isAdmin={isAdmin}
+                onForceLogout={forceLogoutForGuard}
+              >
+                <RequireAuth isLoggedIn={isLoggedIn}>
+                  <Profile />
+                </RequireAuth>
+              </BlockAdminRoute>
             }
           />
 
-          {/* ADMIN: phải đăng nhập, và là ADMIN */}
+          {/* ADMIN: nested routes, dùng AdminLayout + Outlet, user thường vào sẽ bị logout + login */}
           <Route
-            path="/admin"
+            path="/admin/*"
             element={
-              <RequireAuth isLoggedIn={isLoggedIn}>
-                {isAdmin ? <AdminLayout /> : <Navigate to="/" replace />}
-              </RequireAuth>
+              <AdminRoute
+                isAdmin={isAdmin}
+                isLoggedIn={isLoggedIn}
+                onForceLogout={forceLogoutForGuard}
+              >
+                <AdminLayout />
+              </AdminRoute>
             }
-          />
+          >
+            {/* /admin -> DashboardMain */}
+            <Route index element={<DashboardMain />} />
+
+            {/* /admin/products -> ProductsPage */}
+            <Route path="products" element={<ProductsPage />} />
+
+            {/* /admin/products/add */}
+            <Route path="products/add" element={<AddProductPage />} />
+
+            {/* /admin/orders -> OrdersPage */}
+            <Route path="orders" element={<OrdersPage />} />
+
+            {/* /admin/customers -> CustomersPage */}
+            <Route path="customers" element={<CustomersPage />} />
+
+            {/* /admin/customers/add */}
+            <Route path="customers/add" element={<AddCustomerPage />} />
+          </Route>
         </Routes>
       </main>
 

@@ -72,3 +72,32 @@ h6 {
     color: #747bff;
   }
 }
+
+/* Font mặc định cho trang admin (sans-serif, chữ dính bình thường) */
+.admin-font {
+  font-family:
+    system-ui,
+    -apple-system,
+    BlinkMacSystemFont,
+    "Segoe UI",
+    Arial,
+    sans-serif;
+  letter-spacing: normal;
+}
+
+/* Bên trong admin-font, heading cũng dùng cùng font, không giãn chữ */
+.admin-font h1,
+.admin-font h2,
+.admin-font h3,
+.admin-font h4,
+.admin-font h5,
+.admin-font h6 {
+  font-family:
+    system-ui,
+    -apple-system,
+    BlinkMacSystemFont,
+    "Segoe UI",
+    Arial,
+    sans-serif;
+  letter-spacing: normal;
+}
