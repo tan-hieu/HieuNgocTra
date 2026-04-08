@@ -4,7 +4,7 @@ import AdminHeader from "../../layout/header/AdminHeader";
 
 export default function AdminLayout() {
   return (
-    <div className="min-h-screen bg-surface flex">
+    <div className="admin-theme min-h-screen bg-surface flex">
       {/* Sidebar cố định bên trái */}
       <Sidebar />
 

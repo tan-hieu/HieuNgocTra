@@ -64,7 +64,7 @@ export default function Login({ onLoginSuccess }) {
       const res = await fetch("http://localhost:8080/api/auth/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        credentials: "include", // để gửi cookie/session
+        // Không cần credentials: "include" nữa vì ta dùng JWT, không dùng session
         body: JSON.stringify({ email, password }),
       });
 
@@ -81,14 +81,25 @@ export default function Login({ onLoginSuccess }) {
         return;
       }
 
-      const loggedInUser = data?.user ?? data;
+      // Backend mới trả JwtAuthResponse
+      const accessToken = data.accessToken;
+      const userInfo = data.user;
 
-      if (onLoginSuccess && loggedInUser) {
-        onLoginSuccess(loggedInUser);
+      if (!accessToken || !userInfo) {
+        setLoginError("Phản hồi đăng nhập không hợp lệ");
+        return;
       }
 
-      // Điều hướng theo role: nếu ADMIN thì vào /admin
-      if (loggedInUser && loggedInUser.roleName === "ADMIN") {
+      // Lưu JWT để dùng cho các request sau
+      localStorage.setItem("token", accessToken);
+
+      // Callback cho App.jsx
+      if (onLoginSuccess) {
+        onLoginSuccess(userInfo);
+      }
+
+      // Điều hướng theo role
+      if (userInfo.roleName === "ADMIN") {
         navigate("/admin");
       } else {
         navigate("/");

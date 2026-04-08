@@ -1,5 +1,11 @@
 import { useState, useEffect } from "react";
-import { Routes, Route, useNavigate, Navigate } from "react-router-dom";
+import {
+  Routes,
+  Route,
+  useNavigate,
+  useLocation,
+  Navigate,
+} from "react-router-dom";
 
 import "./App.css";
 import ScrollToTop from "./ScrollToTop";
@@ -26,6 +32,11 @@ import { AddProductPage } from "./components/page/admin/AddProductPage";
 import { OrdersPage } from "./components/page/admin/OrdersPage";
 import { CustomersPage } from "./components/page/admin/CustomersPage";
 import { AddCustomerPage } from "./components/page/admin/AddCustomerPage";
+import { CategoriesPage } from "./components/page/admin/CategoriesPage";
+import { AddCategoryPage } from "./components/page/admin/AddCategoryPage";
+import { OriginsPage } from "./components/page/admin/OriginsPage";
+import { AddOriginPage } from "./components/page/admin/AddOriginPage";
+import { AddOrderPage } from "./components/page/admin/AddOrderPage";
 
 function RequireAuth({ isLoggedIn, children }) {
   if (!isLoggedIn) {
@@ -71,6 +82,8 @@ function App() {
     return stored ? JSON.parse(stored) : null;
   });
   const navigate = useNavigate();
+  const location = useLocation();
+  const isAdminRoute = location.pathname.startsWith("/admin");
 
   const isAdmin = currentUser && currentUser.roleName === "ADMIN";
   const isLoggedIn = !!currentUser;
@@ -90,26 +103,45 @@ function App() {
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const cameFromGoogle = params.get("oauth2") === "success";
-    const hasLocalUser = !!localStorage.getItem("user");
 
-    if (!cameFromGoogle && !hasLocalUser) {
+    // Nếu quay về từ Google và có token trên URL thì lưu lại
+    const tokenFromUrl = params.get("token");
+    if (tokenFromUrl) {
+      localStorage.setItem("token", tokenFromUrl);
+      console.log("✓ Saved token from Google redirect");
+    }
+
+    const hasLocalUser = !!localStorage.getItem("user");
+    const hasToken = !!localStorage.getItem("token");
+
+    // Nếu không có token và cũng không có local user thì không cần gọi /me
+    if (!cameFromGoogle && !hasLocalUser && !hasToken) {
       return;
     }
 
     async function fetchMe() {
+      const token = localStorage.getItem("token");
+      if (!token) {
+        console.log("✗ No token, skip /me");
+        setCurrentUser(null);
+        localStorage.removeItem("user");
+        return;
+      }
+
       try {
         const res = await fetch("http://localhost:8080/api/auth/me", {
           method: "GET",
-          credentials: "include",
           headers: {
             Accept: "application/json",
             "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`, // GỬI JWT
           },
         });
 
         if (res.status === 401) {
           setCurrentUser(null);
           localStorage.removeItem("user");
+          localStorage.removeItem("token");
           return;
         }
 
@@ -117,6 +149,7 @@ function App() {
           console.log("✗ /me returned", res.status);
           setCurrentUser(null);
           localStorage.removeItem("user");
+          localStorage.removeItem("token");
           return;
         }
 
@@ -128,6 +161,7 @@ function App() {
           setCurrentUser(userData);
           localStorage.setItem("user", JSON.stringify(userData));
           console.log("✓ User set from /me:", userData.email);
+
           // Nếu là admin và vừa quay về từ Google thì đẩy sang /admin
           if (userData.roleName === "ADMIN" && cameFromGoogle) {
             navigate("/admin");
@@ -137,7 +171,7 @@ function App() {
           localStorage.removeItem("user");
         }
 
-        if (cameFromGoogle) {
+        if (cameFromGoogle || tokenFromUrl) {
           const cleanUrl = window.location.origin + window.location.pathname;
           window.history.replaceState({}, document.title, cleanUrl);
         }
@@ -145,6 +179,7 @@ function App() {
         console.error("✗ fetchMe error:", err);
         setCurrentUser(null);
         localStorage.removeItem("user");
+        localStorage.removeItem("token");
       }
     }
 
@@ -176,13 +211,13 @@ function App() {
     try {
       await fetch("http://localhost:8080/api/auth/logout", {
         method: "POST",
-        credentials: "include",
       });
     } catch (e) {
       console.warn("logout request failed", e);
     }
     setCurrentUser(null);
     localStorage.removeItem("user");
+    localStorage.removeItem("token");
     navigate("/");
   };
 
@@ -191,19 +226,19 @@ function App() {
     try {
       await fetch("http://localhost:8080/api/auth/logout", {
         method: "POST",
-        credentials: "include",
       });
     } catch (e) {
       console.warn("logout request failed", e);
     }
     setCurrentUser(null);
     localStorage.removeItem("user");
+    localStorage.removeItem("token");
   };
 
   return (
     <div className="min-h-screen flex flex-col bg-background-light">
       {/* Header/Footer user chỉ hiện khi không phải admin */}
-      {!isAdmin && (
+      {!isAdminRoute && (
         <Header
           isScrolled={isScrolled}
           handleLogoClick={handleLogoClick}
@@ -303,14 +338,9 @@ function App() {
           <Route
             path="/profile"
             element={
-              <BlockAdminRoute
-                isAdmin={isAdmin}
-                onForceLogout={forceLogoutForGuard}
-              >
-                <RequireAuth isLoggedIn={isLoggedIn}>
-                  <Profile />
-                </RequireAuth>
-              </BlockAdminRoute>
+              <RequireAuth isLoggedIn={isLoggedIn}>
+                <Profile />
+              </RequireAuth>
             }
           />
 
@@ -339,11 +369,35 @@ function App() {
             {/* /admin/orders -> OrdersPage */}
             <Route path="orders" element={<OrdersPage />} />
 
+            {/* /admin/orders/add */}
+            <Route path="orders/add" element={<AddOrderPage />} />
+
             {/* /admin/customers -> CustomersPage */}
             <Route path="customers" element={<CustomersPage />} />
 
             {/* /admin/customers/add */}
             <Route path="customers/add" element={<AddCustomerPage />} />
+
+            {/* /admin/categories -> CategoriesPage */}
+            <Route path="categories" element={<CategoriesPage />} />
+
+            {/* /admin/categories/add */}
+            <Route path="categories/add" element={<AddCategoryPage />} />
+
+            {/* /admin/origins -> OriginsPage */}
+            <Route path="origins" element={<OriginsPage />} />
+
+            {/* /admin/origins/add */}
+            <Route path="origins/add" element={<AddOriginPage />} />
+
+            <Route
+              path="profile"
+              element={
+                <RequireAuth isLoggedIn={isLoggedIn}>
+                  <Profile />
+                </RequireAuth>
+              }
+            />
           </Route>
         </Routes>
       </main>

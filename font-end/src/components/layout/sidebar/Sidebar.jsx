@@ -17,7 +17,7 @@ const navItems = [
   { icon: Users, label: "Khách hàng", path: "/admin/customers" },
   { icon: FolderTree, label: "Danh mục", path: "/admin/categories" },
   { icon: MapPin, label: "Xuất xứ", path: "/admin/origins" },
-  { icon: Settings, label: "Cài đặt", path: "/admin/settings" },
+  // { icon: Settings, label: "Cài đặt", path: "/admin/settings" },
 ];
 
 export default function Sidebar() {

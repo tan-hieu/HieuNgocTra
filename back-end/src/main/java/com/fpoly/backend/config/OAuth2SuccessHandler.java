@@ -1,34 +1,44 @@
 package com.fpoly.backend.config;
 
 import java.io.IOException;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
+import java.util.stream.Collectors;
 
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.core.Authentication;
-import org.springframework.security.core.context.SecurityContext;
-import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.core.GrantedAuthority;
+import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.oauth2.core.user.OAuth2User;
 import org.springframework.security.web.authentication.SimpleUrlAuthenticationSuccessHandler;
-import org.springframework.security.web.context.HttpSessionSecurityContextRepository;
 import org.springframework.stereotype.Component;
 
 import com.fpoly.backend.entity.User;
+import com.fpoly.backend.service.CustomUserDetailsService;
 import com.fpoly.backend.service.GoogleUserService;
+import com.fpoly.backend.service.JwtService;
 
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
-import jakarta.servlet.http.HttpSession;
 
 @Component
 public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler {
 
-    @Autowired
-    private GoogleUserService googleUserService;
+    private final GoogleUserService googleUserService;
+    private final CustomUserDetailsService customUserDetailsService;
+    private final JwtService jwtService;
+
+    public OAuth2SuccessHandler(GoogleUserService googleUserService,
+                                CustomUserDetailsService customUserDetailsService,
+                                JwtService jwtService) {
+        this.googleUserService = googleUserService;
+        this.customUserDetailsService = customUserDetailsService;
+        this.jwtService = jwtService;
+    }
 
     @Override
     public void onAuthenticationSuccess(HttpServletRequest request, HttpServletResponse response,
                                         Authentication authentication) throws IOException {
         System.err.println("=== OAUTH2 SUCCESS HANDLER CALLED ===");
-        System.err.flush();
         try {
             if (!(authentication.getPrincipal() instanceof OAuth2User oAuth2User)) {
                 System.out.println("OAuth2SuccessHandler: principal not OAuth2User");
@@ -46,45 +56,34 @@ public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler 
             }
             System.out.println("OAuth2SuccessHandler: email=" + email + ", name=" + name);
 
-            System.err.println("=== [OAUTH2] email = " + email + " ===");
-            System.err.flush();
-
+            // 1) Tìm hoặc tạo user nội bộ
             User savedUser = googleUserService.findOrCreateGoogleUser(email, name, avatar);
-
             System.out.println("[OAUTH2] GoogleUserService tra ve user id = " + savedUser.getId()
                     + ", email = " + savedUser.getEmail());
 
-            // HttpSession session = request.getSession(true);
-            // session.setAttribute("LOGGED_IN_USER", savedUser);
-            // session.setAttribute("OAUTH2_USER", savedUser);
-            // session.setAttribute("OAUTH2_EMAIL", savedUser.getEmail());
-            // session.setAttribute("OAUTH2_AUTHENTICATED", true);
+            // 2) Load UserDetails nội bộ để có authorities đúng chuẩn (ROLE_USER / ROLE_ADMIN)
+            UserDetails userDetails = customUserDetailsService.loadUserByUsername(savedUser.getEmail());
 
-            HttpSession session = request.getSession(true);
+            // 3) Sinh JWT dùng chung JwtService như login thường
+            String accessToken = jwtService.generateToken(userDetails);
 
-            // Lưu Authentication của Spring Security vào session
-            SecurityContext context = SecurityContextHolder.createEmptyContext();
-            context.setAuthentication(authentication);
-            SecurityContextHolder.setContext(context);
-            session.setAttribute(
-                    HttpSessionSecurityContextRepository.SPRING_SECURITY_CONTEXT_KEY,
-                    context
-            );
+            // (tuỳ chọn) gom roles cho FE nếu muốn dùng
+            String rolesParam = userDetails.getAuthorities().stream()
+                    .map(GrantedAuthority::getAuthority)
+                    .collect(Collectors.joining(","));
 
-            // Dùng chung key với login thường để không phá code cũ
-            session.setAttribute("LOGGED_IN_USER", savedUser);
+            // 4) Redirect về frontend mang theo token qua query param
+            String redirectUrl = "http://localhost:5173/"
+                    + "?oauth2=success"
+                    + "&token=" + URLEncoder.encode(accessToken, StandardCharsets.UTF_8)
+                    + "&roles=" + URLEncoder.encode(rolesParam, StandardCharsets.UTF_8);
 
-            // Giữ lại key cũ nếu chỗ khác đang dùng
-            session.setAttribute("OAUTH2_USER", savedUser);
-            session.setAttribute("OAUTH2_EMAIL", savedUser.getEmail());
-            session.setAttribute("OAUTH2_AUTHENTICATED", true);
-
-            // Gắn cờ để frontend biết đây là lượt quay về từ Google
-            getRedirectStrategy().sendRedirect(request, response, "http://localhost:5173/?oauth2=success");
+            getRedirectStrategy().sendRedirect(request, response, redirectUrl);
         } catch (Exception ex) {
             System.err.println("ERROR in OAuth2SuccessHandler: " + ex.getMessage());
             ex.printStackTrace();
-            response.sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR, "OAuth2 login failed: " + ex.getMessage());
+            response.sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR,
+                    "OAuth2 login failed: " + ex.getMessage());
         }
     }
 }

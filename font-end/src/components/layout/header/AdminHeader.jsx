@@ -28,7 +28,7 @@ export default function AdminHeader() {
 
   const handleProfileClick = () => {
     setIsProfileOpen(false);
-    navigate("/profile");
+    navigate("/admin/profile");
   };
 
   const handleLogoutClick = async () => {
@@ -40,9 +40,12 @@ export default function AdminHeader() {
     } catch (e) {
       console.error("Logout failed", e);
     }
+
     localStorage.removeItem("user");
+    localStorage.removeItem("token"); // quan trọng
     setIsProfileOpen(false);
-    window.location.href = "/";
+
+    window.location.href = "/login";
   };
 
   return (

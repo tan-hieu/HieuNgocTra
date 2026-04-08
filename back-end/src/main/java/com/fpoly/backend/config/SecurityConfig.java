@@ -5,17 +5,22 @@ import java.util.List;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
+import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
+import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.oauth2.client.web.HttpSessionOAuth2AuthorizationRequestRepository;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 
 import com.fpoly.backend.service.CustomOAuth2UserService;
+import com.fpoly.backend.service.CustomUserDetailsService;
 
 @Configuration
 @EnableWebSecurity
@@ -25,6 +30,17 @@ public class SecurityConfig {
     @Bean
     public PasswordEncoder passwordEncoder() {
         return new BCryptPasswordEncoder();
+    }
+
+    // expose CustomUserDetailsService (đã @Service) như UserDetailsService
+    @Bean
+    public UserDetailsService userDetailsService(CustomUserDetailsService customUserDetailsService) {
+        return customUserDetailsService;
+    }
+
+    @Bean
+    public AuthenticationManager authenticationManager(AuthenticationConfiguration configuration) throws Exception {
+        return configuration.getAuthenticationManager();
     }
 
     @Bean
@@ -42,22 +58,31 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http,
                                                    CustomOAuth2UserService customOAuth2UserService,
-                                                   OAuth2SuccessHandler oAuth2SuccessHandler) throws Exception {
+                                                   OAuth2SuccessHandler oAuth2SuccessHandler,
+                                                   JwtAuthFilter jwtAuthFilter) throws Exception {
         http
             .csrf(csrf -> csrf.disable())
             .cors(cors -> cors.configurationSource(corsConfigurationSource()))
+            // API stateless
+            .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.IF_REQUIRED))
             .authorizeHttpRequests(auth -> auth
-                .requestMatchers("/api/auth/**", "/oauth2/**", "/login/**", "/login/oauth2/**").permitAll()
-                .anyRequest().authenticated()
+                .requestMatchers("/api/auth/**", "/oauth2/**", "/login/**", "/login/oauth2/**")
+                    .permitAll()
+                .requestMatchers("/api/admin/**").hasRole("ADMIN")
+                .requestMatchers("/api/user/**").hasAnyRole("USER", "ADMIN")
+                .anyRequest().permitAll()
             )
             .formLogin(form -> form.disable())
             .httpBasic(basic -> basic.disable())
-            .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.ALWAYS))
             .oauth2Login(oauth2 -> oauth2
-            .authorizationEndpoint(auth -> auth.authorizationRequestRepository(new HttpSessionOAuth2AuthorizationRequestRepository()))
-            .userInfoEndpoint(userInfo -> userInfo.userService(customOAuth2UserService))
-            .successHandler(oAuth2SuccessHandler)
-        );
+                .authorizationEndpoint(auth -> auth.authorizationRequestRepository(
+                        new HttpSessionOAuth2AuthorizationRequestRepository()))
+                .userInfoEndpoint(userInfo -> userInfo.userService(customOAuth2UserService))
+                .successHandler(oAuth2SuccessHandler)
+            );
+
+        // JWT filter chạy trước UsernamePasswordAuthenticationFilter
+        http.addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
     }

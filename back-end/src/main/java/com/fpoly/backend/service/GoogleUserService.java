@@ -68,33 +68,33 @@ public class GoogleUserService {
 
             // Nếu Google không trả phone, để NULL (theo yêu cầu). Nếu DB có ràng buộc không cho nhiều NULL,
             // sẽ xử lý trong catch bằng cách tạo user trong transaction mới.
-            user.setPhone(null);
+            user.setPhone("g" + UUID.randomUUID().toString().replace("-", "").substring(0, 19));
 
             try {
-                user = userRepository.saveAndFlush(user);
+                System.out.println("[GOOGLE] Creating user via UserCreationService for: " + email);
+                user = userCreationService.createWithPlaceholderPhone(
+                    email, 
+                    usernameCandidate,
+                    (name == null || name.isBlank()) ? email.split("@")[0] : name.trim(),
+                    (avatar == null || avatar.isBlank()) ? null : avatar.trim(), 
+                    encodedPassword, 
+                    "ACTIVE", 
+                    "USER"
+                );
+                System.out.println("[GOOGLE] ✓ User created successfully: ID=" + user.getId() + ", email=" + user.getEmail() + ", status=" + user.getStatus());
             } catch (DataIntegrityViolationException ex) {
-                String cause = ex.getMostSpecificCause() != null ? ex.getMostSpecificCause().getMessage() : ex.getMessage();
-                System.err.println("[GOOGLE] Lỗi khi lưu user mới: " + cause);
-
-                // Nếu trường hợp race: có thể user đã được tạo bởi luồng khác — thử tìm theo email
+                System.err.println("[GOOGLE] ✗ DataIntegrityViolation: " + ex.getMessage());
                 User existing = userRepository.findByEmail(email).orElse(null);
                 if (existing != null) {
-                    System.out.println("[GOOGLE] Tìm thấy user đã tồn tại bởi luồng khác, trả về user hiện có. ID=" + existing.getId());
+                    System.out.println("[GOOGLE] Returning existing user created by concurrent request: " + existing.getId());
                     return existing;
                 }
-
-                // Nếu lỗi có vẻ liên quan tới phone (duplicate NULL) hoặc duplicate key, tạo user trong transaction mới
-                if (cause != null && (cause.toLowerCase().contains("phone") || cause.toLowerCase().contains("duplicate key") || cause.toLowerCase().contains("(<null>)") || cause.toLowerCase().contains("uq__users__"))) {
-                    System.out.println("[GOOGLE] Lỗi unique constraint có vẻ liên quan tới phone — sử dụng UserCreationService để tạo trong REQUIRES_NEW transaction");
-                    // Sử dụng service tạo user trong transaction mới nhằm tránh session rollback-only
-                    User created = userCreationService.createWithPlaceholderPhone(email, usernameCandidate,
-                            (name == null || name.isBlank()) ? email.split("@")[0] : name.trim(),
-                            (avatar == null || avatar.isBlank()) ? null : avatar.trim(), encodedPassword, "ACTIVE", "USER");
-                    System.out.println("[GOOGLE] Tạo user trong transaction mới thành công. ID=" + created.getId());
-                    return created;
-                } else {
-                    throw ex;
-                }
+                System.err.println("[GOOGLE] No existing user found after DataIntegrityViolation - throwing exception");
+                throw ex;
+            } catch (Exception ex) {
+                System.err.println("[GOOGLE] ✗ Unexpected exception: " + ex.getClass().getSimpleName() + " - " + ex.getMessage());
+                ex.printStackTrace();
+                throw new RuntimeException("[GOOGLE] Failed to create user: " + ex.getMessage(), ex);
             }
 
             System.out.println("[GOOGLE] DA insert user moi vao DB. ID = " + user.getId() + ", email = " + user.getEmail());

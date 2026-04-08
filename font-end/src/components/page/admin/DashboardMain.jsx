@@ -375,14 +375,6 @@ export default function DashboardMain() {
           </table>
         </div>
       </div>
-
-      {/* Floating Action Button */}
-      <button className="fixed bottom-10 right-10 w-16 h-16 bg-primary text-white rounded-full shadow-2xl flex items-center justify-center hover:scale-110 transition-transform z-50 group">
-        <Plus size={28} />
-        <span className="absolute right-20 bg-primary text-white px-4 py-2 rounded-lg text-sm font-bold opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none">
-          Tạo đơn hàng mới
-        </span>
-      </button>
     </div>
   );
 }

@@ -1,25 +1,48 @@
-:root {
-  font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
-  line-height: 1.5;
-  font-weight: 400;
+@import url("https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap");
 
-  color-scheme: light dark;
-  color: rgba(255, 255, 255, 0.87);
-  background-color: #242424;
+:root {
+  font-family:
+    "Manrope",
+    system-ui,
+    -apple-system,
+    "Segoe UI",
+    sans-serif;
+  line-height: 1.5;
+  font-weight: 500;
+
+  /* Tắt dark scheme mặc định để không đè admin */
+  color-scheme: light;
+  color: #1f2b24;
+  background-color: #f4f1ea;
 
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+
+  /* Admin design tokens */
+  --admin-bg: #f4f1ea;
+  --admin-surface: #fefdf9;
+  --admin-surface-soft: #f8f5ee;
+  --admin-border: #ded8ca;
+  --admin-text: #1f2b24;
+  --admin-muted: #5e6b62;
+  --admin-primary: #1f4d3a;
+  --admin-primary-hover: #173b2d;
+  --admin-primary-soft: #e3eee8;
+  --admin-success: #0f766e;
+  --admin-warning: #a16207;
+  --admin-danger: #b91c1c;
 }
 
 a {
-  font-weight: 500;
-  color: #646cff;
-  text-decoration: inherit;
+  font-weight: 600;
+  color: inherit;
+  text-decoration: none;
 }
+
 a:hover {
-  color: #535bf2;
+  color: var(--admin-primary);
 }
 
 body {
@@ -27,77 +50,125 @@ body {
   min-width: 320px;
   min-height: 100vh;
   font-family:
-    "Lora",
+    "Manrope",
     system-ui,
     -apple-system,
-    BlinkMacSystemFont,
     "Segoe UI",
     sans-serif;
-  background-color: #f2ebdc; /* background-light */
-  color: #0f1510;
+  background-color: #f4f1ea;
+  color: var(--admin-text);
 }
 
-/* Heading dùng Playfair Display cho giống */
+/* Giữ user pages nếu cần serif riêng */
 h1,
 h2,
 h3,
 h4,
 h5,
 h6 {
-  font-family: "Playfair Display", "Times New Roman", serif;
+  font-family:
+    "Manrope",
+    system-ui,
+    -apple-system,
+    "Segoe UI",
+    sans-serif;
+  letter-spacing: -0.01em;
 }
 
-/* Hỗ trợ line clamp dùng trong thẻ mô tả sản phẩm */
+/* Hỗ trợ line clamp */
 .line-clamp-1,
 .line-clamp-2 {
   display: -webkit-box;
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
-
 .line-clamp-1 {
   -webkit-line-clamp: 1;
 }
-
 .line-clamp-2 {
   -webkit-line-clamp: 2;
 }
 
-@media (prefers-color-scheme: light) {
-  :root {
-    color: #213547;
-    background-color: #ffffff;
-  }
-  a:hover {
-    color: #747bff;
-  }
-}
-
-/* Font mặc định cho trang admin (sans-serif, chữ dính bình thường) */
-.admin-font {
+/* ADMIN GLOBAL THEME */
+.admin-theme,
+.admin-theme * {
   font-family:
+    "Manrope",
     system-ui,
     -apple-system,
-    BlinkMacSystemFont,
     "Segoe UI",
-    Arial,
     sans-serif;
-  letter-spacing: normal;
+  letter-spacing: 0;
 }
 
-/* Bên trong admin-font, heading cũng dùng cùng font, không giãn chữ */
-.admin-font h1,
-.admin-font h2,
-.admin-font h3,
-.admin-font h4,
-.admin-font h5,
-.admin-font h6 {
+.admin-theme {
+  background: var(--admin-bg);
+  color: var(--admin-text);
+}
+
+.admin-theme .font-serif {
   font-family:
+    "Manrope",
     system-ui,
     -apple-system,
-    BlinkMacSystemFont,
     "Segoe UI",
-    Arial,
-    sans-serif;
-  letter-spacing: normal;
+    sans-serif !important;
+  letter-spacing: -0.01em !important;
+}
+
+.admin-theme .tracking-widest,
+.admin-theme .uppercase {
+  letter-spacing: 0.04em !important;
+}
+
+.admin-theme input,
+.admin-theme select,
+.admin-theme textarea {
+  background: #fbfaf7;
+  border: 1px solid var(--admin-border);
+  color: var(--admin-text);
+}
+
+.admin-theme input::placeholder,
+.admin-theme textarea::placeholder {
+  color: #8a948d;
+}
+
+.admin-theme .bg-white {
+  background-color: var(--admin-surface) !important;
+}
+
+.admin-theme .text-primary,
+.admin-theme .text-\[\#3D5245\] {
+  color: var(--admin-primary) !important;
+}
+
+.admin-theme .bg-primary,
+.admin-theme .bg-\[\#3D5245\] {
+  background-color: var(--admin-primary) !important;
+}
+
+.admin-theme .hover\:bg-\[\#2D3E34\]:hover {
+  background-color: var(--admin-primary-hover) !important;
+}
+
+.admin-theme .border-primary-container\/30,
+.admin-theme .border-secondary\/5,
+.admin-theme .border-secondary\/10 {
+  border-color: var(--admin-border) !important;
+}
+
+.admin-theme .text-secondary\/60,
+.admin-theme .text-secondary\/50,
+.admin-theme .text-secondary\/40,
+.admin-theme .text-on-surface-variant\/60,
+.admin-theme .text-on-surface-variant\/40 {
+  color: var(--admin-muted) !important;
+}
+
+.admin-theme .shadow-sm,
+.admin-theme .shadow-md,
+.admin-theme .shadow-lg,
+.admin-theme .shadow-xl {
+  box-shadow: 0 8px 24px rgba(26, 42, 33, 0.08) !important;
 }

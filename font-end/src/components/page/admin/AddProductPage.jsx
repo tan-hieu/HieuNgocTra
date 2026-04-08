@@ -45,6 +45,16 @@ export function AddProductPage() {
   const [weight, setWeight] = useState("");
   const [stock, setStock] = useState("");
   const [isGenerating, setIsGenerating] = useState(null);
+  const [mainImage, setMainImage] = useState(null);
+  const [previewMainImage, setPreviewMainImage] = useState(null);
+  const [extraImages, setExtraImages] = useState([null, null, null, null]);
+  const [previewExtraImages, setPreviewExtraImages] = useState([
+    null,
+    null,
+    null,
+    null,
+  ]);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   // TẠM THỜI: chưa gọi AI, chỉ giữ stub để sau này gọi backend
   const generateAIContent = async (section) => {
@@ -56,6 +66,121 @@ export function AddProductPage() {
       alert("Có lỗi xảy ra. Vui lòng thử lại sau.");
     } finally {
       setIsGenerating(null);
+    }
+  };
+
+  const handleMainImageChange = (e) => {
+    const file = e.target.files && e.target.files[0];
+    if (!file) return;
+    setMainImage(file);
+    setPreviewMainImage(URL.createObjectURL(file));
+  };
+
+  const handleExtraImageChangeAt = (index) => (e) => {
+    const file = e.target.files && e.target.files[0];
+    if (!file) return;
+
+    setExtraImages((prev) => {
+      const next = [...prev];
+      next[index] = file;
+      return next;
+    });
+
+    setPreviewExtraImages((prev) => {
+      const next = [...prev];
+      next[index] = URL.createObjectURL(file);
+      return next;
+    });
+  };
+
+  const handlePublish = async () => {
+    if (!productName.trim()) {
+      alert("Vui lòng nhập tên sản phẩm");
+      return;
+    }
+    if (!price) {
+      alert("Vui lòng nhập giá bán");
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      const token = localStorage.getItem("token");
+
+      const productPayload = {
+        productName,
+        origin,
+        category,
+        shortDesc,
+        story,
+        taste,
+        brewing,
+        storage,
+        visual,
+        aroma,
+        tasteProfile,
+        price: price.toString(),
+        weight: weight.toString(),
+        stock: stock ? parseInt(stock, 10) : 0,
+      };
+
+      const formData = new FormData();
+
+      // phần "product" là JSON, BE map vào CreateProductRequest
+      formData.append(
+        "product",
+        new Blob([JSON.stringify(productPayload)], {
+          type: "application/json",
+        }),
+      );
+
+      if (mainImage) {
+        formData.append("mainImage", mainImage);
+      }
+
+      extraImages.forEach((file) => {
+        if (file) {
+          formData.append("extraImages", file);
+        }
+      });
+
+      const res = await fetch("http://localhost:8080/api/admin/products", {
+        method: "POST",
+        headers: token
+          ? {
+              Authorization: `Bearer ${token}`,
+            }
+          : undefined, // không set Content-Type để browser tự gắn boundary
+        body: formData,
+      });
+
+      if (!res.ok) {
+        const errData = await res.json().catch(() => null);
+        console.error("Create product failed response:", {
+          status: res.status,
+          statusText: res.statusText,
+          body: errData,
+        });
+
+        const detail = errData?.details ? ` - ${errData.details}` : "";
+        throw new Error(
+          errData?.message
+            ? `${errData.message}${detail}`
+            : `Lỗi ${res.status}`,
+        );
+      }
+
+      const data = await res.json();
+      console.log("✓ Created product:", data);
+      alert("Tạo sản phẩm thành công!");
+
+      // chuyển về danh sách sản phẩm admin
+      navigate("/admin/products");
+    } catch (err) {
+      console.error("Create product error:", err);
+      alert(err.message || "Có lỗi xảy ra khi tạo sản phẩm");
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -95,9 +220,13 @@ export function AddProductPage() {
           <button className="flex-1 md:flex-none px-6 py-3 bg-white border-2 border-primary/10 text-primary font-bold rounded-2xl hover:bg-primary/5 transition-all text-sm">
             Lưu nháp
           </button>
-          <button className="flex-1 md:flex-none px-6 py-3 bg-primary text-white font-bold rounded-2xl shadow-lg shadow-primary/20 flex items-center justify-center gap-2 hover:bg-primary/90 transition-all text-sm">
+          <button
+            onClick={handlePublish}
+            disabled={isSubmitting || isGenerating !== null}
+            className="flex-1 md:flex-none px-6 py-3 bg-primary text-white font-bold rounded-2xl shadow-lg shadow-primary/20 flex items-center justify-center gap-2 hover:bg-primary/90 transition-all text-sm disabled:opacity-60"
+          >
             <Send size={18} />
-            Xuất bản
+            {isSubmitting ? "Đang lưu..." : "Xuất bản"}
           </button>
         </div>
       </div>
@@ -328,33 +457,66 @@ export function AddProductPage() {
 
               <div className="space-y-6">
                 {/* Main Image */}
-                <div className="aspect-square bg-surface-container-low/50 rounded-[2.5rem] border-2 border-dashed border-primary/20 flex flex-col items-center justify-center cursor-pointer hover:bg-primary/5 transition-all group relative overflow-hidden shadow-inner">
-                  <div className="flex flex-col items-center group-hover:scale-110 transition-transform duration-700">
-                    <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mb-4 text-primary/40 group-hover:bg-primary/20 transition-colors">
-                      <Plus size={32} />
-                    </div>
-                    <span className="text-xs font-bold text-primary/60 uppercase">
-                      Ảnh đại diện
-                    </span>
-                    <p className="text-[10px] text-secondary/30 mt-2 font-bold">
-                      Kéo thả hoặc click để tải lên
-                    </p>
+                <label className="block">
+                  <input
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={handleMainImageChange}
+                  />
+                  <div className="aspect-square bg-surface-container-low/50 rounded-[2.5rem] border-2 border-dashed border-primary/20 flex flex-col items-center justify-center cursor-pointer hover:bg-primary/5 transition-all group relative overflow-hidden shadow-inner">
+                    {previewMainImage ? (
+                      <img
+                        src={previewMainImage}
+                        alt="Main preview"
+                        className="w-full h-full object-cover rounded-[2.5rem]"
+                      />
+                    ) : (
+                      <div className="flex flex-col items-center group-hover:scale-110 transition-transform duration-700">
+                        <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mb-4 text-primary/40 group-hover:bg-primary/20 transition-colors">
+                          <Plus size={32} />
+                        </div>
+                        <span className="text-xs font-bold text-primary/60 uppercase">
+                          Ảnh đại diện
+                        </span>
+                        <p className="text-[10px] text-secondary/30 mt-2 font-bold">
+                          Kéo thả hoặc click để tải lên
+                        </p>
+                      </div>
+                    )}
                   </div>
-                </div>
+                </label>
 
                 {/* Small Images Grid */}
-                <div className="grid grid-cols-4 gap-3">
-                  {[1, 2, 3, 4].map((i) => (
-                    <div
-                      key={i}
-                      className="aspect-square bg-surface-container-low/30 rounded-2xl border-2 border-dashed border-primary/10 flex flex-col items-center justify-center text-primary/30 hover:bg-primary/5 transition-all cursor-pointer group"
-                    >
-                      <Plus
-                        size={16}
-                        className="group-hover:scale-110 transition-transform"
-                      />
-                    </div>
-                  ))}
+                <div>
+                  <label className="block text-[10px] font-bold text-secondary/40 uppercase mb-2 ml-1">
+                    Ảnh phụ (tối đa 4 ảnh tuỳ ý)
+                  </label>
+
+                  <div className="grid grid-cols-4 gap-3">
+                    {Array.from({ length: 4 }).map((_, i) => (
+                      <label
+                        key={i}
+                        className="aspect-square rounded-2xl overflow-hidden border-2 border-dashed border-primary/10 flex items-center justify-center cursor-pointer bg-surface-container-low/30"
+                      >
+                        <input
+                          type="file"
+                          accept="image/*"
+                          className="hidden"
+                          onChange={handleExtraImageChangeAt(i)}
+                        />
+                        {previewExtraImages[i] ? (
+                          <img
+                            src={previewExtraImages[i]}
+                            alt={`Extra ${i + 1}`}
+                            className="w-full h-full object-cover"
+                          />
+                        ) : (
+                          <Plus size={16} className="text-primary/30" />
+                        )}
+                      </label>
+                    ))}
+                  </div>
                 </div>
 
                 <div className="p-6 bg-primary/5 rounded-2xl border border-primary/10">

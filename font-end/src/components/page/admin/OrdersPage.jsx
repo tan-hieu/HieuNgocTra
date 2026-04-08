@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import { useState } from "react";
 import { motion, AnimatePresence } from "motion/react";
+import { useNavigate } from "react-router-dom";
 
 const mockOrders = [
   {
@@ -86,6 +87,7 @@ const mockOrders = [
 export function OrdersPage() {
   const [activeTab, setActiveTab] = useState("Tất cả");
   const [selectedOrder, setSelectedOrder] = useState(null);
+  const navigate = useNavigate();
 
   const filteredOrders = mockOrders.filter((order) => {
     if (activeTab === "Tất cả") return true;
@@ -135,7 +137,10 @@ export function OrdersPage() {
             Xuất báo cáo
           </button>
           {/* Nút TẠO ĐƠN MỚI */}
-          <button className="flex-1 md:flex-none px-5 py-2.5 bg-primary text-white font-bold rounded-xl shadow-lg shadow-primary/20 flex items-center justify-center gap-2 hover:bg-primary/90 transition-all text-sm">
+          <button
+            onClick={() => navigate("/admin/orders/add")}
+            className="flex-1 md:flex-none px-5 py-2.5 bg-primary text-white font-bold rounded-xl shadow-lg shadow-primary/20 flex items-center justify-center gap-2 hover:bg-primary/90 transition-all text-sm"
+          >
             <Plus size={18} />
             Tạo đơn mới
           </button>

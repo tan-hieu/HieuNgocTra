@@ -27,7 +27,7 @@ public class User {
     private Long id;
 
     // khóa ngoại đến roles(id)
-    @ManyToOne(fetch = FetchType.LAZY)
+    @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "role_id", nullable = false)
     private Role role;
 

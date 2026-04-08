@@ -4,20 +4,19 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
 import java.util.Random;
+import java.util.stream.Collectors;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSender;
+import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.GrantedAuthority;
-import org.springframework.security.core.authority.SimpleGrantedAuthority;
-import org.springframework.security.core.context.SecurityContext;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.oauth2.core.user.OAuth2User;
-import org.springframework.security.web.context.HttpSessionSecurityContextRepository;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -25,11 +24,14 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import jakarta.servlet.http.HttpServletRequest;
 
 import com.fpoly.backend.entity.Role;
 import com.fpoly.backend.entity.User;
 import com.fpoly.backend.repository.RoleRepository;
 import com.fpoly.backend.repository.UserRepository;
+import com.fpoly.backend.service.JwtService;
 
 import jakarta.servlet.http.HttpSession;
 
@@ -42,15 +44,21 @@ public class AuthController {
     private final RoleRepository roleRepository;
     private final JavaMailSender mailSender;
     private final PasswordEncoder passwordEncoder;
+    private final AuthenticationManager authenticationManager;
+    private final JwtService jwtService;
 
     public AuthController(UserRepository userRepository,
                           RoleRepository roleRepository,
                           JavaMailSender mailSender,
-                          PasswordEncoder passwordEncoder) {
+                          PasswordEncoder passwordEncoder,
+                          AuthenticationManager authenticationManager,
+                          JwtService jwtService) {
         this.userRepository = userRepository;
         this.roleRepository = roleRepository;
         this.mailSender = mailSender;
         this.passwordEncoder = passwordEncoder;
+        this.authenticationManager = authenticationManager;
+        this.jwtService = jwtService;
     }
 
     @PostMapping("/register")
@@ -158,117 +166,194 @@ public class AuthController {
     }
 
     @PostMapping("/login")
-    public ResponseEntity<?> login(@RequestBody Map<String, String> body,
-                               HttpSession session) {
-        String email = body.get("email");
+    public ResponseEntity<?> login(@RequestBody Map<String, String> body) {
+        String usernameOrEmail = body.get("email"); // FE đang gửi key "email"
         String password = body.get("password");
 
-        User user = userRepository.findByEmail(email).orElse(null);
+        if (usernameOrEmail == null || usernameOrEmail.isBlank()
+                || password == null || password.isBlank()) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(Map.of("message", "Email/Username và mật khẩu không được để trống"));
+        }
+
+        // 1) Tìm user theo email rồi tới username
+        User user = userRepository.findByEmail(usernameOrEmail)
+                .orElseGet(() -> userRepository.findByUsername(usernameOrEmail).orElse(null));
+
         if (user == null) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                    .body(Map.of("message", "Email hoặc mật khẩu không đúng"));
+                    .body(Map.of("message", "Email/Username hoặc mật khẩu không đúng"));
         }
 
+        // 2) Kiểm tra password
         if (!passwordEncoder.matches(password, user.getPasswordHash())) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                    .body(Map.of("message", "Email hoặc mật khẩu không đúng"));
+                    .body(Map.of("message", "Email/Username hoặc mật khẩu không đúng"));
         }
 
+        // 3) Kiểm tra status
         if (!"ACTIVE".equalsIgnoreCase(user.getStatus())) {
             return ResponseEntity.status(HttpStatus.FORBIDDEN)
                     .body(Map.of("message", "Tài khoản đã bị khóa / không hoạt động"));
         }
 
-        session.setAttribute("LOGGED_IN_USER", user);
-
-        // Thiết lập Spring Security Authentication dựa trên role từ DB để các route bị bảo vệ hoạt động
+        // 4) Tạo principal (dùng email làm username trong JWT)
         String roleName = (user.getRole() != null && user.getRole().getRoleName() != null)
-            ? user.getRole().getRoleName()
-            : "USER";
-        List<GrantedAuthority> authorities = List.of(new SimpleGrantedAuthority("ROLE_" + roleName));
-        org.springframework.security.core.userdetails.User principal =
-            new org.springframework.security.core.userdetails.User(user.getEmail(), "", authorities);
-        UsernamePasswordAuthenticationToken authToken =
-            new UsernamePasswordAuthenticationToken(principal, null, authorities);
-        SecurityContext context = SecurityContextHolder.createEmptyContext();
-        context.setAuthentication(authToken);
-        SecurityContextHolder.setContext(context);
-        session.setAttribute(HttpSessionSecurityContextRepository.SPRING_SECURITY_CONTEXT_KEY, context);
+                ? user.getRole().getRoleName()
+                : "USER";
 
-        AuthUserResponse dto = new AuthUserResponse(
-            user.getId(), user.getFullName(), user.getUsername(), user.getEmail(),
-            user.getPhone(), user.getAvatarUrl(), user.getAddress(), user.getStatus(),
-            user.getRole() != null ? user.getRole().getRoleName() : null
+        var authorities = List.<GrantedAuthority>of(
+                new SimpleGrantedAuthority("ROLE_" + roleName)
         );
 
-        return ResponseEntity.ok(Map.of("user", dto));
+        org.springframework.security.core.userdetails.User principal =
+                new org.springframework.security.core.userdetails.User(
+                        user.getEmail(),
+                        user.getPasswordHash(),
+                        authorities
+                );
+
+        // 5) Sinh JWT
+        String accessToken = jwtService.generateToken(principal);
+
+        // 6) Lấy roles từ authorities
+        List<String> roles = authorities.stream()
+                .map(GrantedAuthority::getAuthority)
+                .collect(Collectors.toList());
+
+        AuthUserResponse userDto = new AuthUserResponse(
+                user.getId(),
+                user.getFullName(),
+                user.getUsername(),
+                user.getEmail(),
+                user.getPhone(),
+                user.getAvatarUrl(),
+                user.getAddress(),
+                user.getStatus(),
+                user.getRole() != null ? user.getRole().getRoleName() : null
+        );
+
+        JwtAuthResponse jwtResponse = new JwtAuthResponse(
+                accessToken,
+                "Bearer",
+                user.getUsername(),
+                roles,
+                userDto
+        );
+
+        return ResponseEntity.ok(jwtResponse);
     }
 
     @PostMapping("/logout")
-    public ResponseEntity<?> logout(HttpSession session) {
-        session.invalidate();
-        return ResponseEntity.ok(Map.of("message", "Đã đăng xuất"));
+    public ResponseEntity<?> logout() {
+        // Stateless: server không giữ session auth; FE chỉ cần xoá JWT
+        return ResponseEntity.ok(Map.of("message", "Đã logout, hãy xoá token phía frontend"));
     }
 
     @GetMapping("/me")
     @Transactional(readOnly = true)
     public ResponseEntity<?> me(HttpSession session) {
-        // 1) Ưu tiên session trước để dùng chung cho cả login thường và Google login
-        User sessionUser = (User) session.getAttribute("LOGGED_IN_USER");
-        if (sessionUser != null) {
-            User user = userRepository.findById(sessionUser.getId()).orElse(null);
-
-            if (user == null) {
+        System.out.println("=== /me called ===");
+        
+        try {
+            // 1) Kiểm tra session trước
+            User sessionUser = (User) session.getAttribute("LOGGED_IN_USER");
+            if (sessionUser != null) {
+                System.out.println("✓ User found in session: " + sessionUser.getEmail());
+                User user = userRepository.findById(sessionUser.getId()).orElse(null);
+                if (user != null) {
+                    return ResponseEntity.ok(buildAuthUserResponse(user));
+                }
                 session.removeAttribute("LOGGED_IN_USER");
-                return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                        .body(Map.of("error", "Session user not found", "code", "SESSION_USER_NOT_FOUND"));
+                System.out.println("✗ Session user not found in DB");
             }
 
-            AuthUserResponse dto = new AuthUserResponse(
-                user.getId(), user.getFullName(), user.getUsername(), user.getEmail(),
-                user.getPhone(), user.getAvatarUrl(), user.getAddress(), user.getStatus(),
-                user.getRole() != null ? user.getRole().getRoleName() : null
-            );
-            return ResponseEntity.ok(dto);
+            // 2) Fallback sang JWT/SecurityContext
+            Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+            System.out.println("[/me] Authentication: " + (authentication != null ? authentication.getClass().getSimpleName() : "null"));
+            
+            if (authentication == null) {
+                System.out.println("✗ No authentication");
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                        .body(Map.of("error", "Unauthorized"));
+            }
+
+            // Kiểm tra anonymous
+            Object principal = authentication.getPrincipal();
+            if (principal == null) {
+                System.out.println("✗ Principal is null");
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                        .body(Map.of("error", "Unauthorized"));
+            }
+
+            String principalStr = principal.toString();
+            if ("anonymousUser".equals(principalStr)) {
+                System.out.println("✗ Anonymous user");
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                        .body(Map.of("error", "Unauthorized"));
+            }
+
+            if (!authentication.isAuthenticated()) {
+                System.out.println("✗ Not authenticated");
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                        .body(Map.of("error", "Unauthorized"));
+            }
+
+            // 3) Tìm email từ principal
+            String email = null;
+            
+            if (principal instanceof org.springframework.security.core.userdetails.User userDetails) {
+                email = userDetails.getUsername();
+                System.out.println("✓ Email from UserDetails: " + email);
+            } else if (principal instanceof OAuth2User oAuth2User) {
+                email = oAuth2User.getAttribute("email");
+                System.out.println("✓ Email from OAuth2User: " + email);
+            } else {
+                System.out.println("✗ Unknown principal type: " + principal.getClass().getSimpleName());
+            }
+
+            if (email == null || email.isBlank()) {
+                System.out.println("✗ Email is null/blank");
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                        .body(Map.of("error", "Unauthorized"));
+            }
+
+            // 4) Tìm user từ DB
+            User user = userRepository.findByEmail(email).orElse(null);
+            if (user == null) {
+                System.out.println("✗ User not found in DB for email: " + email);
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                        .body(Map.of("error", "Unauthorized"));
+            }
+
+            System.out.println("✓ User found: " + user.getId() + " - " + user.getEmail());
+
+            // 5) Lưu vào session để lần sau nhanh hơn
+            session.setAttribute("LOGGED_IN_USER", user);
+
+            return ResponseEntity.ok(buildAuthUserResponse(user));
+            
+        } catch (Exception ex) {
+            System.err.println("✗ /me exception: " + ex.getClass().getSimpleName() + " - " + ex.getMessage());
+            ex.printStackTrace();
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(Map.of("error", "Internal error"));
         }
+    }
 
-        // 2) Nếu không có session thì mới fallback sang SecurityContext
-        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        if (authentication == null || !authentication.isAuthenticated()
-                || "anonymousUser".equals(authentication.getPrincipal())) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                    .body(Map.of("error", "Not authenticated", "code", "NO_AUTH"));
-        }
-
-        String email = null;
-        Object principal = authentication.getPrincipal();
-
-        if (principal instanceof org.springframework.security.core.userdetails.User userDetails) {
-            email = userDetails.getUsername();
-        } else if (principal instanceof OAuth2User oAuth2User) {
-            email = oAuth2User.getAttribute("email");
-        }
-
-        if (email == null || email.isBlank()) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                    .body(Map.of("error", "No email in principal", "code", "NO_EMAIL"));
-        }
-
-        User user = userRepository.findByEmail(email).orElse(null);
-        if (user == null) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                    .body(Map.of("error", "Internal user not found", "code", "NO_INTERNAL_USER"));
-        }
-
-        // Đồng bộ lại session để các lần sau frontend gọi /me ổn định
-        session.setAttribute("LOGGED_IN_USER", user);
-
-        AuthUserResponse dto = new AuthUserResponse(
-            user.getId(), user.getFullName(), user.getUsername(), user.getEmail(),
-            user.getPhone(), user.getAvatarUrl(), user.getAddress(), user.getStatus(),
-            user.getRole() != null ? user.getRole().getRoleName() : null
+    private AuthUserResponse buildAuthUserResponse(User user) {
+        String roleName = (user.getRole() != null) ? user.getRole().getRoleName() : "USER";
+        return new AuthUserResponse(
+                user.getId(),
+                user.getFullName(),
+                user.getUsername(),
+                user.getEmail(),
+                user.getPhone(),
+                user.getAvatarUrl(),
+                user.getAddress(),
+                user.getStatus(),
+                roleName
         );
-        return ResponseEntity.ok(dto);
     }
 
     private void sendOtpEmail(String to, String otp) {

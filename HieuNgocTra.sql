@@ -195,8 +195,37 @@ CREATE TABLE order_status_history (
 );
 GO
 
+--=======================
+--11.xuất xứ
+--=======================
+CREATE TABLE origins (
+        id BIGINT IDENTITY(1,1) PRIMARY KEY,
+        origin_code NVARCHAR(30) NOT NULL UNIQUE,
+        name NVARCHAR(150) NOT NULL,
+        slug NVARCHAR(180) NOT NULL UNIQUE,
+        region NVARCHAR(150) NOT NULL,
+        description NVARCHAR(MAX),
+        image_url NVARCHAR(500),
+        status NVARCHAR(20) NOT NULL DEFAULT 'ACTIVE'
+            CHECK (status IN ('ACTIVE', 'INACTIVE')),
+        created_at DATETIME2 NOT NULL DEFAULT SYSDATETIME(),
+        updated_at DATETIME2 NOT NULL DEFAULT SYSDATETIME(),
+        CONSTRAINT uq_origins_name_region UNIQUE (name, region)
+);
+GO
+
+
 INSERT INTO roles (role_name, description)
 VALUES 
   ('USER',  N'Người dùng'),
   ('ADMIN', N'Quản trị viên');
 GO
+
+INSERT INTO categories (name, slug, description)
+VALUES
+  (N'Trà Shan Tuyết', 'tra-shan-tuyet', N'Trà Shan Tuyết cao cấp'),
+  (N'Trà Ô Long',     'tra-o-long',     N'Trà Ô Long thượng hạng'),
+  (N'Trà Atiso',       'tra-atiso',       N'Trà Atiso Đà Lạt'),
+  (N'Trà Xanh',       'tra-xanh',       N'Trà Xanh truyền thống'),
+  (N'Trà Đen',        'tra-den',        N'Trà Đen đậm vị');
+

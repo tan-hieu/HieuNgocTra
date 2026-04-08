@@ -122,15 +122,6 @@ export function CustomersPage() {
 
   return (
     <div className="admin-font pb-24 min-h-screen bg-[#F9F8F3] -mx-4 md:-mx-8 px-4 md:px-8 pt-8 relative">
-      {/* Breadcrumbs */}
-      <nav className="flex items-center gap-2 text-[10px] font-bold text-secondary/40 uppercase tracking-normal mb-8">
-        <Link to="/" className="hover:text-[#3D5245] transition-colors">
-          Hệ thống
-        </Link>
-        <ChevronRight size={10} className="text-secondary/20" />
-        <span className="text-[#3D5245]">Khách hàng</span>
-      </nav>
-
       {/* Header Section */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-6 mb-10">
         <div>
