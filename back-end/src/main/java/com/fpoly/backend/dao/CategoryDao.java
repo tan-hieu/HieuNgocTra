@@ -6,7 +6,17 @@ import com.fpoly.backend.entity.Category;
 
 public interface CategoryDao {
 
-    Category findByNameIgnoreCase(String name);
+    Category save(Category category);
 
-    List<Category> findAll();
+    Category findById(Long id);
+
+    List<Category> findAllOrderByCreatedAtDesc();
+
+    boolean existsByNameIgnoreCase(String name, Long excludeId);
+
+    boolean existsBySlug(String slug, Long excludeId);
+
+    long countProductsByCategoryId(Long categoryId);
+
+    void delete(Category category);
 }

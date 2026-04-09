@@ -28,7 +28,7 @@ public class GoogleUserService {
     @Autowired
     private UserCreationService userCreationService;
 
-    public User findOrCreateGoogleUser(String email, String name, String avatar) {
+    public User findOrCreateGoogleUser(String email, String name, String avatar, String phone) {
         if (email == null || email.isBlank()) {
             throw new IllegalArgumentException("Google email is null or blank");
         }
@@ -42,13 +42,11 @@ public class GoogleUserService {
         if (user == null) {
             System.out.println("[GOOGLE] KHONG tim thay user trong DB, se tao moi. Email = " + email);
 
-            user = new User();
-            user.setEmail(email);
-
-            // Lấy username từ tên Google nếu có, nếu trùng thì fallback/điều chỉnh để đảm bảo unique
             String usernameCandidate = (name == null || name.isBlank()) ? email : name.trim();
-            // Chuẩn hoá: thay khoảng trắng bằng dấu gạch dưới, loại bỏ ký tự lạ
-            usernameCandidate = usernameCandidate.replaceAll("\\s+", "_").replaceAll("[^\\p{L}0-9_@.-]", "");
+            usernameCandidate = usernameCandidate
+                    .replaceAll("\\s+", "_")
+                    .replaceAll("[^\\p{L}0-9_@.-]", "");
+
             String base = usernameCandidate;
             int suffix = 1;
             while (userRepository.existsByUsername(usernameCandidate)) {
@@ -57,29 +55,22 @@ public class GoogleUserService {
                     usernameCandidate = usernameCandidate.substring(0, 95) + "_" + suffix;
                 }
             }
-            user.setUsername(usernameCandidate);
 
-            user.setFullName((name == null || name.isBlank()) ? email.split("@")[0] : name.trim());
-            user.setAvatarUrl((avatar == null || avatar.isBlank()) ? null : avatar.trim());
-            user.setStatus("ACTIVE");
-            user.setRole(role);
-            String encodedPassword = passwordEncoder.encode(UUID.randomUUID().toString() + UUID.randomUUID().toString());
-            user.setPasswordHash(encodedPassword);
-
-            // Nếu Google không trả phone, để NULL (theo yêu cầu). Nếu DB có ràng buộc không cho nhiều NULL,
-            // sẽ xử lý trong catch bằng cách tạo user trong transaction mới.
-            user.setPhone("g" + UUID.randomUUID().toString().replace("-", "").substring(0, 19));
+            String encodedPassword = passwordEncoder.encode(
+                    UUID.randomUUID().toString() + UUID.randomUUID().toString()
+            );
 
             try {
                 System.out.println("[GOOGLE] Creating user via UserCreationService for: " + email);
                 user = userCreationService.createWithPlaceholderPhone(
-                    email, 
-                    usernameCandidate,
-                    (name == null || name.isBlank()) ? email.split("@")[0] : name.trim(),
-                    (avatar == null || avatar.isBlank()) ? null : avatar.trim(), 
-                    encodedPassword, 
-                    "ACTIVE", 
-                    "USER"
+                        email,
+                        usernameCandidate,
+                        (name == null || name.isBlank()) ? email.split("@")[0] : name.trim(),
+                        (avatar == null || avatar.isBlank()) ? null : avatar.trim(),
+                        phone, // lấy đúng phone từ Google
+                        encodedPassword,
+                        "ACTIVE",
+                        "USER"
                 );
                 System.out.println("[GOOGLE] ✓ User created successfully: ID=" + user.getId() + ", email=" + user.getEmail() + ", status=" + user.getStatus());
             } catch (DataIntegrityViolationException ex) {
@@ -89,7 +80,6 @@ public class GoogleUserService {
                     System.out.println("[GOOGLE] Returning existing user created by concurrent request: " + existing.getId());
                     return existing;
                 }
-                System.err.println("[GOOGLE] No existing user found after DataIntegrityViolation - throwing exception");
                 throw ex;
             } catch (Exception ex) {
                 System.err.println("[GOOGLE] ✗ Unexpected exception: " + ex.getClass().getSimpleName() + " - " + ex.getMessage());
@@ -97,10 +87,7 @@ public class GoogleUserService {
                 throw new RuntimeException("[GOOGLE] Failed to create user: " + ex.getMessage(), ex);
             }
 
-            System.out.println("[GOOGLE] DA insert user moi vao DB. ID = " + user.getId() + ", email = " + user.getEmail());
             return user;
-        } else {
-            System.out.println("[GOOGLE] DA ton tai user trong DB, khong insert moi. ID = " + user.getId() + ", email = " + user.getEmail());
         }
 
         if (!"ACTIVE".equalsIgnoreCase(user.getStatus())) {
@@ -110,6 +97,7 @@ public class GoogleUserService {
         boolean changed = false;
         String finalName = (name == null || name.isBlank()) ? email.split("@")[0] : name.trim();
         String finalAvatar = (avatar == null || avatar.isBlank()) ? null : avatar.trim();
+        String finalPhone = normalizePhone(phone);
 
         if (!Objects.equals(user.getFullName(), finalName)) {
             user.setFullName(finalName);
@@ -119,15 +107,32 @@ public class GoogleUserService {
             user.setAvatarUrl(finalAvatar);
             changed = true;
         }
+
+        // Nếu Google trả phone thật thì cập nhật vào user
+        if (finalPhone != null && !Objects.equals(user.getPhone(), finalPhone)) {
+            user.setPhone(finalPhone);
+            changed = true;
+        }
+
         if (user.getRole() == null) {
             user.setRole(role);
             changed = true;
         }
+
         if (changed) {
-            System.out.println("Updating existing internal user for Google email: " + email);
             user = userRepository.saveAndFlush(user);
-            System.out.println("Saved internal user successfully with id=" + user.getId());
         }
+
         return user;
+    }
+
+    private String normalizePhone(String input) {
+        if (input == null) return null;
+        String p = input.trim();
+        if (p.isEmpty()) return null;
+        p = p.replaceAll("[^0-9+]", "");
+        if (p.startsWith("++")) p = p.substring(1);
+        if (p.length() > 20) p = p.substring(0, 20);
+        return p.isBlank() ? null : p;
     }
 }
