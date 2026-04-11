@@ -7,6 +7,7 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.text.Normalizer;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -60,25 +61,14 @@ public class ProductService {
             MultipartFile mainImage,
             List<MultipartFile> extraImages) throws IOException {
 
-        if (productName == null || productName.isBlank()) {
-            throw new IllegalArgumentException("Tên sản phẩm không được để trống");
-        }
-        if (price == null || price.compareTo(BigDecimal.ZERO) < 0) {
-            throw new IllegalArgumentException("Giá sản phẩm không hợp lệ");
-        }
-
-        // 1) Tìm category theo tên (khớp với FE: "Trà Shan Tuyết", "Trà Ô Long", ...)
+        validateBasic(productName, price);
         Category category = resolveCategory(categoryName);
 
-        // 2) Kiểm tra trùng tên sản phẩm
         if (productDao.existsByNameIgnoreCase(productName)) {
             throw new IllegalArgumentException("Tên sản phẩm đã tồn tại");
         }
 
-        // 3) Sinh product_code duy nhất
         String productCode = generateUniqueProductCode();
-
-        // 4) Sinh slug duy nhất
         String baseSlug = toSlug(productName);
         String slug = baseSlug;
         int suffix = 1;
@@ -101,71 +91,238 @@ public class ProductService {
         product.setBrewingGuide(brewingGuide);
         product.setStatus("ACTIVE");
 
-        // createdAt / updatedAt sẽ set trong @PrePersist, nhưng đảm bảo không null
         if (product.getCreatedAt() == null) {
             LocalDateTime now = LocalDateTime.now();
             product.setCreatedAt(now);
             product.setUpdatedAt(now);
         }
 
-        // 5) Upload ảnh chính nếu có
-        String mainImageUrl = null;
         if (mainImage != null && !mainImage.isEmpty()) {
-            try {
-                mainImageUrl = uploadImageWithFallback(
-                        mainImage,
-                        "hieungoc_tra/products/main",
-                        "products/main"
-                );
-                product.setMainImageUrl(mainImageUrl);
-            } catch (RuntimeException | IOException e) {
-                // Log lại cho bạn biết, nhưng không chặn lưu sản phẩm
-                System.err.println("[ImageUpload] Upload main image failed: " + e.getMessage());
-                // mainImageUrl vẫn là null -> sản phẩm lưu không có ảnh chính
-            }
+            String mainImageUrl = uploadImageWithFallback(
+                    mainImage,
+                    "hieungoc_tra/products/main",
+                    "products/main"
+            );
+            product.setMainImageUrl(mainImageUrl);
         }
 
-        // 6) Lưu product
         product = productDao.save(product);
 
-        int sortOrder = 0;
+        recreateImageSet(product, product.getMainImageUrl(), extraImages);
 
-        // 7) Tạo bản ghi product_images cho ảnh chính (nếu có)
-        if (mainImageUrl != null) {
-            ProductImage mainImgEntity = new ProductImage();
-            mainImgEntity.setProduct(product);
-            mainImgEntity.setImageUrl(mainImageUrl);
-            mainImgEntity.setMain(true);
-            mainImgEntity.setSortOrder(sortOrder++);
-            productImageDao.save(mainImgEntity);
+        return product;
+    }
+
+    @Transactional
+    public Product updateProduct(
+            Long id,
+            String categoryName,
+            String productName,
+            String origin,
+            String weight,
+            BigDecimal price,
+            Integer stockQuantity,
+            String shortDescription,
+            String description,
+            String flavorNotes,
+            String brewingGuide,
+            MultipartFile mainImage,
+            List<MultipartFile> extraImages) throws IOException {
+
+        Product product = productDao.findById(id);
+        if (product == null) {
+            throw new IllegalArgumentException("Không tìm thấy sản phẩm với id: " + id);
         }
 
-        // 8) Upload và lưu ảnh phụ
-        if (extraImages != null) {
-            for (MultipartFile file : extraImages) {
-                if (file == null || file.isEmpty()) {
-                    continue;
-                }
-                try {
-                    String url = uploadImageWithFallback(
-                            file,
-                            "hieungoc_tra/products/extra",
-                            "products/extra"
-                    );
-                    ProductImage pi = new ProductImage();
-                    pi.setProduct(product);
-                    pi.setImageUrl(url);
-                    pi.setMain(false);
-                    pi.setSortOrder(sortOrder++);
-                    productImageDao.save(pi);
-                } catch (RuntimeException | IOException e) {
-                    System.err.println("[ImageUpload] Upload extra image failed: " + e.getMessage());
-                    // Bỏ qua ảnh phụ lỗi, vẫn lưu các ảnh khác
-                }
-            }
+        validateBasic(productName, price);
+        Category category = resolveCategory(categoryName);
+
+        if (!product.getName().equalsIgnoreCase(productName)
+                && productDao.existsByNameIgnoreCase(productName)) {
+            throw new IllegalArgumentException("Tên sản phẩm đã tồn tại");
+        }
+
+        String baseSlug = toSlug(productName);
+        String slug = baseSlug;
+        int suffix = 1;
+        while (productDao.existsBySlug(slug) && !slug.equals(product.getSlug())) {
+            slug = baseSlug + "-" + suffix++;
+        }
+
+        product.setCategory(category);
+        product.setName(productName);
+        product.setSlug(slug);
+        product.setOrigin(origin);
+        product.setWeight(weight);
+        product.setPrice(price);
+        product.setStockQuantity(stockQuantity != null ? stockQuantity : 0);
+        product.setShortDescription(shortDescription);
+        product.setDescription(description);
+        product.setFlavorNotes(flavorNotes);
+        product.setBrewingGuide(brewingGuide);
+
+        if (mainImage != null && !mainImage.isEmpty()) {
+            String mainImageUrl = uploadImageWithFallback(
+                    mainImage,
+                    "hieungoc_tra/products/main",
+                    "products/main"
+            );
+            product.setMainImageUrl(mainImageUrl);
+        }
+
+        product = productDao.save(product);
+
+        boolean hasMainUpload = mainImage != null && !mainImage.isEmpty();
+        boolean hasExtraUpload = hasAnyFile(extraImages);
+
+        if (hasMainUpload || hasExtraUpload) {
+            recreateImageSet(product, product.getMainImageUrl(), extraImages);
         }
 
         return product;
+    }
+
+    @Transactional
+    public void deleteProduct(Long id) {
+        Product product = productDao.findById(id);
+        if (product == null) {
+            throw new IllegalArgumentException("Không tìm thấy sản phẩm với id: " + id);
+        }
+        productDao.delete(product);
+    }
+
+    @Transactional(readOnly = true)
+    public List<ProductListItem> getAllProducts() {
+        return productDao.findAllOrderByCreatedAtDesc()
+                .stream()
+                .map(p -> new ProductListItem(
+                        p.getId(),
+                        p.getProductCode(),
+                        p.getName(),
+                        p.getCategory() != null ? p.getCategory().getName() : null,
+                        p.getOrigin(),
+                        p.getWeight(),
+                        p.getPrice(),
+                        p.getStockQuantity(),
+                        p.getStatus(),
+                        p.getMainImageUrl(),
+                        p.getShortDescription()
+                ))
+                .toList();
+    }
+
+    @Transactional(readOnly = true)
+    public ProductDetailItem getProductDetail(Long id) {
+        Product p = productDao.findById(id);
+        if (p == null) {
+            throw new IllegalArgumentException("Không tìm thấy sản phẩm với id: " + id);
+        }
+
+        List<String> extraUrls = productImageDao.findByProductIdOrderBySortOrderAsc(id).stream()
+                .filter(img -> !img.isMain())
+                .map(ProductImage::getImageUrl)
+                .toList();
+
+        String[] descriptionParts = splitByParagraphs(p.getDescription(), 3);
+        String[] flavorParts = splitByParagraphs(p.getFlavorNotes(), 3);
+
+        return new ProductDetailItem(
+                p.getId(),
+                p.getProductCode(),
+                p.getName(),
+                p.getCategory() != null ? p.getCategory().getName() : "",
+                p.getOrigin(),
+                p.getWeight(),
+                p.getPrice(),
+                p.getStockQuantity(),
+                p.getStatus(),
+                p.getShortDescription(), // shortDescription
+                p.getShortDescription(), // shortDesc
+                descriptionParts[0],     // story
+                flavorParts[0],          // taste
+                p.getBrewingGuide(),     // brewing
+                descriptionParts[2],     // storage
+                descriptionParts[1],     // visual
+                flavorParts[1],          // aroma
+                flavorParts[2],          // tasteProfile
+                p.getMainImageUrl(),
+                extraUrls,
+                p.getDescription(),
+                p.getFlavorNotes()
+        );
+    }
+
+    private void validateBasic(String productName, BigDecimal price) {
+        if (productName == null || productName.isBlank()) {
+            throw new IllegalArgumentException("Tên sản phẩm không được để trống");
+        }
+        if (price == null || price.compareTo(BigDecimal.ZERO) < 0) {
+            throw new IllegalArgumentException("Giá sản phẩm không hợp lệ");
+        }
+    }
+
+    private boolean hasAnyFile(List<MultipartFile> files) {
+        if (files == null) return false;
+        return files.stream().anyMatch(f -> f != null && !f.isEmpty());
+    }
+
+    private void recreateImageSet(Product product, String mainImageUrl, List<MultipartFile> extraImages) throws IOException {
+        productImageDao.deleteByProductId(product.getId());
+
+        int sortOrder = 0;
+
+        if (mainImageUrl != null && !mainImageUrl.isBlank()) {
+            ProductImage mainImg = new ProductImage();
+            mainImg.setProduct(product);
+            mainImg.setImageUrl(mainImageUrl);
+            mainImg.setMain(true);
+            mainImg.setSortOrder(sortOrder++);
+            productImageDao.save(mainImg);
+        }
+
+        if (extraImages != null) {
+            for (MultipartFile file : extraImages) {
+                if (file == null || file.isEmpty()) continue;
+
+                String url = uploadImageWithFallback(
+                        file,
+                        "hieungoc_tra/products/extra",
+                        "products/extra"
+                );
+
+                ProductImage pi = new ProductImage();
+                pi.setProduct(product);
+                pi.setImageUrl(url);
+                pi.setMain(false);
+                pi.setSortOrder(sortOrder++);
+                productImageDao.save(pi);
+            }
+        }
+    }
+
+    private String[] splitByParagraphs(String text, int length) {
+        String[] result = new String[length];
+        for (int i = 0; i < length; i++) result[i] = "";
+
+        if (text == null || text.isBlank()) {
+            return result;
+        }
+
+        String normalized = text
+                .replace("\r\n", "\n")
+                .replace("\r", "\n")
+                .trim();
+
+        String[] raw = normalized.split("\\n\\s*\\n");
+        List<String> clean = new ArrayList<>();
+        for (String s : raw) {
+            if (s != null && !s.isBlank()) clean.add(s.trim());
+        }
+
+        for (int i = 0; i < clean.size() && i < length; i++) {
+            result[i] = clean.get(i);
+        }
+        return result;
     }
 
     private String uploadToCloudinary(MultipartFile file, String folder) throws IOException {
@@ -219,7 +376,6 @@ public class ProductService {
     private String generateUniqueProductCode() {
         String code;
         do {
-            // Ví dụ: TRA-AB12CD34
             String random = UUID.randomUUID().toString().replace("-", "").substring(0, 8).toUpperCase();
             code = "TRA-" + random;
         } while (productDao.existsByProductCode(code));
@@ -246,21 +402,57 @@ public class ProductService {
 
     private String toSlug(String input) {
         if (input == null) return "";
-        String nowhitespace = input.trim();
-
-        // Bỏ dấu tiếng Việt
-        String normalized = Normalizer.normalize(nowhitespace, Normalizer.Form.NFD);
+        String normalized = Normalizer.normalize(input.trim(), Normalizer.Form.NFD);
         String slug = normalized.replaceAll("\\p{InCombiningDiacriticalMarks}+", "");
 
-        // Chỉ giữ [a-z0-9 -], chuyển space thành "-"
         slug = slug.toLowerCase()
                 .replaceAll("[^a-z0-9\\s-]", "")
                 .replaceAll("\\s+", "-")
-                .replaceAll("-+", "-");
-
-        // Bỏ dấu "-" ở đầu/cuối
-        slug = slug.replaceAll("^-+", "").replaceAll("-+$", "");
+                .replaceAll("-+", "-")
+                .replaceAll("^-+", "")
+                .replaceAll("-+$", "");
 
         return slug;
+    }
+
+    public record ProductListItem(
+            Long id,
+            String productCode,
+            String name,
+            String categoryName,
+            String origin,
+            String weight,
+            BigDecimal price,
+            Integer stockQuantity,
+            String status,
+            String mainImageUrl,
+            String shortDescription
+    ) {
+    }
+
+    public record ProductDetailItem(
+            Long id,
+            String productCode,
+            String productName,
+            String category,
+            String origin,
+            String weight,
+            BigDecimal price,
+            Integer stock,
+            String status,
+            String shortDescription,
+            String shortDesc,
+            String story,
+            String taste,
+            String brewing,
+            String storage,
+            String visual,
+            String aroma,
+            String tasteProfile,
+            String mainImageUrl,
+            List<String> extraImageUrls,
+            String rawDescription,
+            String rawFlavorNotes
+    ) {
     }
 }

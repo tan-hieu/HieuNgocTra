@@ -12,7 +12,11 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.CrossOrigin;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestPart;
 import org.springframework.web.bind.annotation.RestController;
@@ -32,98 +36,171 @@ public class ProductController {
         this.productService = productService;
     }
 
-    /**
-     * Tạo mới sản phẩm:
-     * - product: JSON mô tả sản phẩm (CreateProductRequest)
-     * - mainImage: file ảnh đại diện
-     * - extraImages: list file ảnh phụ
-     */
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<?> createProduct(
-            @RequestPart("product") CreateProductRequest productRequest,
+            @RequestPart("product") CreateProductRequest request,
             @RequestPart(value = "mainImage", required = false) MultipartFile mainImage,
             @RequestPart(value = "extraImages", required = false) List<MultipartFile> extraImages) {
 
         try {
-            // 1) Chuyển đổi dữ liệu từ FE sang kiểu domain
-
-            BigDecimal price = null;
-            try {
-                if (productRequest.getPrice() != null && !productRequest.getPrice().isBlank()) {
-                    price = new BigDecimal(productRequest.getPrice().trim());
-                }
-            } catch (NumberFormatException e) {
-                throw new IllegalArgumentException(
-                        "Giá sản phẩm không hợp lệ: " + productRequest.getPrice());
-            }
-
-            Integer stock = productRequest.getStock() != null ? productRequest.getStock() : Integer.valueOf(0);
-            String weightStr = productRequest.getWeight() != null
-                    ? productRequest.getWeight().trim()
-                    : "";
-
-            // Ghép story + visual + storage thành description dài
-            String description = joinNonEmpty(
-                    "\n\n",
-                    productRequest.getStory(),
-                    productRequest.getVisual(),
-                    productRequest.getStorage()
-            );
-
-            // Ghép taste + aroma + tasteProfile thành flavor_notes
-            String flavorNotes = joinNonEmpty(
-                    "\n\n",
-                    productRequest.getTaste(),
-                    productRequest.getAroma(),
-                    productRequest.getTasteProfile()
-            );
-
-            String brewingGuide = productRequest.getBrewing();
-
-            // 2) Gọi service tạo sản phẩm + lưu ảnh
             Product saved = productService.createProduct(
-                    productRequest.getCategory(),    // tên danh mục
-                    productRequest.getProductName(), // tên sản phẩm
-                    productRequest.getOrigin(),      // xuất xứ
-                    weightStr,                       // trọng lượng (text)
-                    price,
-                    stock,
-                    productRequest.getShortDesc(),   // short_description
-                    description,                     // description
-                    flavorNotes,                     // flavor_notes
-                    brewingGuide,                    // brewing_guide
+                    request.getCategory(),
+                    request.getProductName(),
+                    request.getOrigin(),
+                    safeTrim(request.getWeight()),
+                    parsePrice(request.getPrice()),
+                    request.getStock() != null ? request.getStock() : 0,
+                    safeTrim(request.getShortDesc()),
+                    joinNonEmpty("\n\n", request.getStory(), request.getVisual(), request.getStorage()),
+                    joinNonEmpty("\n\n", request.getTaste(), request.getAroma(), request.getTasteProfile()),
+                    safeTrim(request.getBrewing()),
                     mainImage,
                     extraImages
             );
 
-            // 3) Trả về thông tin cơ bản cho FE
-                Map<String, Object> response = new LinkedHashMap<>();
-                response.put("id", saved.getId());
-                response.put("name", saved.getName());
-                response.put("slug", saved.getSlug());
-                response.put("productCode", saved.getProductCode());
-                response.put("mainImageUrl", saved.getMainImageUrl());
-                return ResponseEntity.status(HttpStatus.CREATED).body(response);
-
+            return ResponseEntity.status(HttpStatus.CREATED).body(toBasicMap(saved));
         } catch (IllegalArgumentException ex) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                    .body(Map.of("message", ex.getMessage()));
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of("message", ex.getMessage()));
         } catch (DataIntegrityViolationException ex) {
-            String rootMessage = extractRootCauseMessage(ex);
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                    .body(Map.of(
-                            "message", "Lỗi ràng buộc dữ liệu khi lưu sản phẩm",
-                            "details", rootMessage
-                    ));
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of(
+                    "message", "Lỗi ràng buộc dữ liệu khi lưu sản phẩm",
+                    "details", extractRootCauseMessage(ex)
+            ));
         } catch (Exception ex) {
-            System.err.println("[ProductController] createProduct error: " + ex.getMessage());
-            String rootMessage = extractRootCauseMessage(ex);
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(Map.of(
-                            "message", "Có lỗi xảy ra khi tạo sản phẩm",
-                            "details", rootMessage
-                    ));
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(Map.of(
+                    "message", "Có lỗi xảy ra khi tạo sản phẩm",
+                    "details", extractRootCauseMessage(ex)
+            ));
         }
+    }
+
+    @PutMapping(value = "/{id}", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<?> updateProduct(
+            @PathVariable Long id,
+            @RequestPart("product") CreateProductRequest request,
+            @RequestPart(value = "mainImage", required = false) MultipartFile mainImage,
+            @RequestPart(value = "extraImages", required = false) List<MultipartFile> extraImages) {
+
+        try {
+            Product saved = productService.updateProduct(
+                    id,
+                    request.getCategory(),
+                    request.getProductName(),
+                    request.getOrigin(),
+                    safeTrim(request.getWeight()),
+                    parsePrice(request.getPrice()),
+                    request.getStock() != null ? request.getStock() : 0,
+                    safeTrim(request.getShortDesc()),
+                    joinNonEmpty("\n\n", request.getStory(), request.getVisual(), request.getStorage()),
+                    joinNonEmpty("\n\n", request.getTaste(), request.getAroma(), request.getTasteProfile()),
+                    safeTrim(request.getBrewing()),
+                    mainImage,
+                    extraImages
+            );
+
+            return ResponseEntity.ok(toBasicMap(saved));
+        } catch (IllegalArgumentException ex) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of("message", ex.getMessage()));
+        } catch (Exception ex) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(Map.of(
+                    "message", "Có lỗi xảy ra khi cập nhật sản phẩm",
+                    "details", extractRootCauseMessage(ex)
+            ));
+        }
+    }
+
+    @DeleteMapping("/{id}")
+    public ResponseEntity<?> deleteProduct(@PathVariable Long id) {
+        try {
+            productService.deleteProduct(id);
+            return ResponseEntity.ok(Map.of("message", "Xóa thành công"));
+        } catch (IllegalArgumentException ex) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of("message", ex.getMessage()));
+        } catch (Exception ex) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(Map.of(
+                    "message", "Có lỗi xảy ra khi xóa sản phẩm",
+                    "details", extractRootCauseMessage(ex)
+            ));
+        }
+    }
+
+    @GetMapping
+    public ResponseEntity<?> getAllProducts() {
+        List<Map<String, Object>> body = productService.getAllProducts()
+                .stream()
+                .map(item -> {
+                    Map<String, Object> map = new LinkedHashMap<>();
+                    map.put("id", item.id());
+                    map.put("productCode", item.productCode());
+                    map.put("name", item.name());
+                    map.put("categoryName", item.categoryName());
+                    map.put("price", item.price());
+                    map.put("stockQuantity", item.stockQuantity());
+                    map.put("status", item.status());
+                    map.put("mainImageUrl", item.mainImageUrl());
+                    return map;
+                })
+                .toList();
+        return ResponseEntity.ok(body);
+    }
+
+    @GetMapping("/{id}")
+    public ResponseEntity<?> getProductDetail(@PathVariable Long id) {
+        try {
+            ProductService.ProductDetailItem item = productService.getProductDetail(id);
+
+            Map<String, Object> map = new LinkedHashMap<>();
+            map.put("id", item.id());
+            map.put("productCode", item.productCode());
+            map.put("productName", item.productName());
+            map.put("category", item.category());
+            map.put("origin", item.origin());
+            map.put("weight", item.weight());
+            map.put("shortDescription", item.shortDescription());
+            map.put("price", item.price());
+            map.put("stock", item.stock());
+            map.put("status", item.status());
+            map.put("shortDesc", item.shortDesc());
+            map.put("story", item.story());
+            map.put("taste", item.taste());
+            map.put("brewing", item.brewing());
+            map.put("storage", item.storage());
+            map.put("visual", item.visual());
+            map.put("aroma", item.aroma());
+            map.put("tasteProfile", item.tasteProfile());
+            map.put("mainImageUrl", item.mainImageUrl());
+            map.put("extraImageUrls", item.extraImageUrls());
+            map.put("rawDescription", item.rawDescription());
+            map.put("rawFlavorNotes", item.rawFlavorNotes());
+
+            return ResponseEntity.ok(map);
+        } catch (IllegalArgumentException ex) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of("message", ex.getMessage()));
+        } catch (Exception ex) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(Map.of(
+                    "message", "Có lỗi xảy ra khi lấy chi tiết sản phẩm",
+                    "details", extractRootCauseMessage(ex)
+            ));
+        }
+    }
+
+    private BigDecimal parsePrice(String raw) {
+        try {
+            if (raw == null || raw.isBlank()) return null;
+            return new BigDecimal(raw.trim());
+        } catch (NumberFormatException ex) {
+            throw new IllegalArgumentException("Giá sản phẩm không hợp lệ: " + raw);
+        }
+    }
+
+    private String safeTrim(String value) {
+        return value == null ? null : value.trim();
+    }
+
+    private String joinNonEmpty(String delimiter, String... parts) {
+        return Arrays.stream(parts)
+                .filter(p -> p != null && !p.isBlank())
+                .collect(Collectors.joining(delimiter));
     }
 
     private String extractRootCauseMessage(Throwable throwable) {
@@ -135,16 +212,16 @@ public class ProductController {
         return (message == null || message.isBlank()) ? root.getClass().getSimpleName() : message;
     }
 
-    private String joinNonEmpty(String delimiter, String... parts) {
-        return Arrays.stream(parts)
-                .filter(p -> p != null && !p.isBlank())
-                .collect(Collectors.joining(delimiter));
+    private Map<String, Object> toBasicMap(Product saved) {
+        Map<String, Object> response = new LinkedHashMap<>();
+        response.put("id", saved.getId());
+        response.put("name", saved.getName());
+        response.put("slug", saved.getSlug());
+        response.put("productCode", saved.getProductCode());
+        response.put("mainImageUrl", saved.getMainImageUrl());
+        return response;
     }
 
-    /**
-     * DTO nhận JSON từ FE (được gói trong part "product").
-     * Các field này map 1-1 với form ở AddProductPage.jsx.
-     */
     public static class CreateProductRequest {
 
         private String productName;
@@ -158,7 +235,7 @@ public class ProductController {
         private String visual;
         private String aroma;
         private String tasteProfile;
-        private String price; // nhận dạng String, ở server convert sang BigDecimal
+        private String price;
         private String weight;
         private Integer stock;
 

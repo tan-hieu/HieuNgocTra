@@ -23,16 +23,32 @@ import {
   ShieldCheck,
   Sparkles,
   Loader2,
+  CheckCircle2,
+  XCircle,
 } from "lucide-react";
 import { Link as RouterLink, useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "motion/react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+
+const ORIGINS_API = "http://localhost:8080/api/admin/origins";
+const CATEGORIES_API = "http://localhost:8080/api/admin/categories";
+
+function normalizeApiStatus(status) {
+  return String(status || "").toUpperCase();
+}
 
 export function AddProductPage() {
   const navigate = useNavigate();
+
   const [productName, setProductName] = useState("");
-  const [origin, setOrigin] = useState("Hà Giang, Việt Nam");
-  const [category, setCategory] = useState("Trà Shan Tuyết");
+
+  const [origin, setOrigin] = useState("");
+  const [category, setCategory] = useState("");
+
+  const [originOptions, setOriginOptions] = useState([]);
+  const [categoryOptions, setCategoryOptions] = useState([]);
+  const [isLoadingOptions, setIsLoadingOptions] = useState(true);
+
   const [shortDesc, setShortDesc] = useState("");
   const [story, setStory] = useState("");
   const [taste, setTaste] = useState("");
@@ -56,14 +72,95 @@ export function AddProductPage() {
   ]);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // TẠM THỜI: chưa gọi AI, chỉ giữ stub để sau này gọi backend
+  const [notice, setNotice] = useState(null);
+  // notice = { type: "success" | "error" | "info", title: string, message: string }
+
+  const showNotice = (type, title, message) => {
+    setNotice({ type, title, message });
+  };
+
+  useEffect(() => {
+    if (!notice) return;
+    const timer = setTimeout(() => setNotice(null), 2800);
+    return () => clearTimeout(timer);
+  }, [notice]);
+
+  useEffect(() => {
+    const token = localStorage.getItem("token");
+
+    const fetchOptions = async () => {
+      setIsLoadingOptions(true);
+      try {
+        const [originRes, categoryRes] = await Promise.all([
+          fetch(ORIGINS_API, {
+            headers: token ? { Authorization: "Bearer " + token } : undefined,
+          }),
+          fetch(CATEGORIES_API, {
+            headers: token ? { Authorization: "Bearer " + token } : undefined,
+          }),
+        ]);
+
+        const originData = await originRes.json().catch(() => []);
+        const categoryData = await categoryRes.json().catch(() => []);
+
+        if (!originRes.ok) {
+          throw new Error(originData?.message || "Không tải được xuất xứ");
+        }
+        if (!categoryRes.ok) {
+          throw new Error(categoryData?.message || "Không tải được danh mục");
+        }
+
+        const origins = (Array.isArray(originData) ? originData : [])
+          .filter((o) => normalizeApiStatus(o?.status) === "ACTIVE")
+          .map((o) => ({
+            id: o.id,
+            value: [o.name, o.region].filter(Boolean).join(", "),
+            label: [o.name, o.region].filter(Boolean).join(", "),
+          }));
+
+        const categories = (Array.isArray(categoryData) ? categoryData : [])
+          .filter((c) => normalizeApiStatus(c?.status) === "ACTIVE")
+          .map((c) => ({
+            id: c.id,
+            value: c.name || "",
+            label: c.name || "",
+          }));
+
+        setOriginOptions(origins);
+        setCategoryOptions(categories);
+
+        if (!origin && origins.length > 0) {
+          setOrigin(origins[0].value);
+        }
+        if (!category && categories.length > 0) {
+          setCategory(categories[0].value);
+        }
+      } catch (err) {
+        console.error("Load options error:", err);
+        showNotice(
+          "error",
+          "Tải dữ liệu thất bại",
+          err?.message || "Không tải được dữ liệu xuất xứ/danh mục",
+        );
+      } finally {
+        setIsLoadingOptions(false);
+      }
+    };
+
+    fetchOptions();
+  }, []);
+
   const generateAIContent = async (section) => {
     setIsGenerating(section);
     try {
-      alert("Tính năng AI sẽ được kết nối qua backend sau.");
+      showNotice(
+        "info",
+        "Thông báo",
+        "Tính năng AI sẽ được kết nối qua backend sau.",
+      );
     } catch (error) {
       console.error("AI Generation Error (stub):", error);
-      alert("Có lỗi xảy ra. Vui lòng thử lại sau.");
+      showNotice("error", "Lỗi AI", "Có lỗi xảy ra. Vui lòng thử lại sau.");
     } finally {
       setIsGenerating(null);
     }
@@ -94,12 +191,14 @@ export function AddProductPage() {
   };
 
   const handlePublish = async () => {
-    if (!productName.trim()) {
-      alert("Vui lòng nhập tên sản phẩm");
-      return;
-    }
-    if (!price) {
-      alert("Vui lòng nhập giá bán");
+    const missingFields = getMissingFields();
+
+    if (missingFields.length > 0) {
+      showNotice(
+        "error",
+        "Thiếu thông tin",
+        "Vui lòng nhập đầy đủ: " + missingFields.join(", "),
+      );
       return;
     }
 
@@ -125,8 +224,6 @@ export function AddProductPage() {
       };
 
       const formData = new FormData();
-
-      // phần "product" là JSON, BE map vào CreateProductRequest
       formData.append(
         "product",
         new Blob([JSON.stringify(productPayload)], {
@@ -134,34 +231,19 @@ export function AddProductPage() {
         }),
       );
 
-      if (mainImage) {
-        formData.append("mainImage", mainImage);
-      }
-
+      if (mainImage) formData.append("mainImage", mainImage);
       extraImages.forEach((file) => {
-        if (file) {
-          formData.append("extraImages", file);
-        }
+        if (file) formData.append("extraImages", file);
       });
 
       const res = await fetch("http://localhost:8080/api/admin/products", {
         method: "POST",
-        headers: token
-          ? {
-              Authorization: `Bearer ${token}`,
-            }
-          : undefined, // không set Content-Type để browser tự gắn boundary
+        headers: token ? { Authorization: `Bearer ${token}` } : undefined,
         body: formData,
       });
 
       if (!res.ok) {
         const errData = await res.json().catch(() => null);
-        console.error("Create product failed response:", {
-          status: res.status,
-          statusText: res.statusText,
-          body: errData,
-        });
-
         const detail = errData?.details ? ` - ${errData.details}` : "";
         throw new Error(
           errData?.message
@@ -170,26 +252,97 @@ export function AddProductPage() {
         );
       }
 
-      const data = await res.json();
-      console.log("✓ Created product:", data);
-      alert("Tạo sản phẩm thành công!");
-
-      // chuyển về danh sách sản phẩm admin
-      navigate("/admin/products");
+      showNotice("success", "Thành công", "Tạo sản phẩm thành công!");
+      setTimeout(() => navigate("/admin/products"), 650);
     } catch (err) {
-      console.error("Create product error:", err);
-      alert(err.message || "Có lỗi xảy ra khi tạo sản phẩm");
+      showNotice(
+        "error",
+        "Tạo sản phẩm thất bại",
+        err?.message || "Có lỗi xảy ra khi tạo sản phẩm.",
+      );
     } finally {
       setIsSubmitting(false);
     }
   };
 
+  const getMissingFields = () => {
+    const missing = [];
+
+    if (!productName.trim()) missing.push("Tên sản phẩm");
+    if (!origin.trim()) missing.push("Xuất xứ");
+    if (!category.trim()) missing.push("Danh mục");
+    if (!weight.toString().trim()) missing.push("Trọng lượng");
+    if (!price.toString().trim()) missing.push("Giá bán");
+    if (!stock.toString().trim()) missing.push("Tồn kho");
+
+    if (!shortDesc.trim()) missing.push("Mô tả ngắn");
+    if (!story.trim()) missing.push("Câu chuyện sản phẩm");
+    if (!taste.trim()) missing.push("Hương vị");
+    if (!brewing.trim()) missing.push("Nghệ thuật pha trà");
+    if (!storage.trim()) missing.push("Bảo quản");
+    if (!visual.trim()) missing.push("Mô tả ngoại quan");
+    if (!aroma.trim()) missing.push("Hương thơm");
+    if (!tasteProfile.trim()) missing.push("Taste profile");
+
+    // Ảnh đại diện bắt buộc
+    if (!mainImage) missing.push("Ảnh đại diện");
+
+    // Ảnh phụ là tùy chọn (0-4 ảnh)
+    return missing;
+  };
+
   return (
     <div className="admin-font max-w-7xl mx-auto pb-24 px-4">
-      {/* Header */}
+      <AnimatePresence>
+        {notice && (
+          <motion.div
+            key="notice"
+            initial={{ opacity: 0, y: -14, scale: 0.98 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: -10, scale: 0.98 }}
+            transition={{ duration: 0.2 }}
+            className="fixed top-5 right-5 z-[120]"
+          >
+            <div
+              className={
+                "min-w-[320px] max-w-[420px] rounded-2xl border px-4 py-3 shadow-xl backdrop-blur " +
+                (notice.type === "success"
+                  ? "bg-emerald-50 border-emerald-200 text-emerald-700"
+                  : notice.type === "error"
+                    ? "bg-rose-50 border-rose-200 text-rose-700"
+                    : "bg-blue-50 border-blue-200 text-blue-700")
+              }
+            >
+              <div className="flex items-start gap-3">
+                <div className="shrink-0 mt-0.5">
+                  {notice.type === "success" ? (
+                    <CheckCircle2 size={18} />
+                  ) : notice.type === "error" ? (
+                    <XCircle size={18} />
+                  ) : (
+                    <Info size={18} />
+                  )}
+                </div>
+
+                <div className="flex-1">
+                  <p className="font-bold text-sm">{notice.title}</p>
+                  <p className="text-sm mt-0.5">{notice.message}</p>
+                </div>
+
+                <button
+                  onClick={() => setNotice(null)}
+                  className="shrink-0 p-1 rounded-md hover:bg-black/5 transition-colors"
+                >
+                  <X size={16} />
+                </button>
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       <div className="mb-10 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 border-b border-primary/10 pb-6">
         <div>
-          {/* breadcrumb */}
           <div className="flex items-center gap-2 text-[10px] font-bold text-secondary/40 uppercase mb-2">
             <RouterLink
               to="/products"
@@ -232,9 +385,7 @@ export function AddProductPage() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-        {/* Left Column - Form Content (7/12) */}
         <div className="lg:col-span-7 space-y-8">
-          {/* 1. Basic Info */}
           <section className="bg-white p-8 rounded-[2.5rem] border border-primary/5 shadow-sm hover:shadow-md transition-shadow">
             <div className="flex items-center gap-4 mb-8">
               <div className="w-12 h-12 bg-primary/5 rounded-2xl flex items-center justify-center text-primary">
@@ -266,12 +417,19 @@ export function AddProductPage() {
                   <select
                     value={origin}
                     onChange={(e) => setOrigin(e.target.value)}
-                    className="w-full px-6 py-4 bg-surface-container-low/40 rounded-2xl border-2 border-transparent focus:border-primary/20 focus:bg-white transition-all font-medium appearance-none cursor-pointer text-secondary outline-none"
+                    disabled={isLoadingOptions || originOptions.length === 0}
+                    className="w-full px-6 py-4 bg-surface-container-low/40 rounded-2xl border-2 border-transparent focus:border-primary/20 focus:bg-white transition-all font-medium appearance-none cursor-pointer text-secondary outline-none disabled:opacity-60"
                   >
-                    <option>Hà Giang, Việt Nam</option>
-                    <option>Mộc Châu, Việt Nam</option>
-                    <option>Thái Nguyên, Việt Nam</option>
-                    <option>Bảo Lộc, Việt Nam</option>
+                    {isLoadingOptions && <option>Đang tải xuất xứ...</option>}
+                    {!isLoadingOptions && originOptions.length === 0 && (
+                      <option>Không có xuất xứ khả dụng</option>
+                    )}
+                    {!isLoadingOptions &&
+                      originOptions.map((o) => (
+                        <option key={o.id} value={o.value}>
+                          {o.label}
+                        </option>
+                      ))}
                   </select>
                   <ChevronRight
                     size={14}
@@ -287,12 +445,19 @@ export function AddProductPage() {
                   <select
                     value={category}
                     onChange={(e) => setCategory(e.target.value)}
-                    className="w-full px-6 py-4 bg-surface-container-low/40 rounded-2xl border-2 border-transparent focus:border-primary/20 focus:bg-white transition-all font-medium appearance-none cursor-pointer text-secondary outline-none"
+                    disabled={isLoadingOptions || categoryOptions.length === 0}
+                    className="w-full px-6 py-4 bg-surface-container-low/40 rounded-2xl border-2 border-transparent focus:border-primary/20 focus:bg-white transition-all font-medium appearance-none cursor-pointer text-secondary outline-none disabled:opacity-60"
                   >
-                    <option>Trà Shan Tuyết</option>
-                    <option>Trà Ô Long</option>
-                    <option>Trà Xanh</option>
-                    <option>Trà Đen</option>
+                    {isLoadingOptions && <option>Đang tải danh mục...</option>}
+                    {!isLoadingOptions && categoryOptions.length === 0 && (
+                      <option>Không có danh mục khả dụng</option>
+                    )}
+                    {!isLoadingOptions &&
+                      categoryOptions.map((c) => (
+                        <option key={c.id} value={c.value}>
+                          {c.label}
+                        </option>
+                      ))}
                   </select>
                   <ChevronRight
                     size={14}
@@ -349,7 +514,6 @@ export function AddProductPage() {
             </div>
           </section>
 
-          {/* 2. AI Content Sections */}
           <div className="space-y-8">
             {[
               {
@@ -377,7 +541,7 @@ export function AddProductPage() {
                 setValue: setTaste,
               },
               {
-                id: "art",
+                id: "brewing",
                 label: "Nghệ thuật pha trà",
                 title: "Nghệ thuật pha trà",
                 icon: <Coffee size={20} />,
@@ -391,6 +555,30 @@ export function AddProductPage() {
                 icon: <ShieldCheck size={20} />,
                 value: storage,
                 setValue: setStorage,
+              },
+              {
+                id: "visual",
+                label: "Mô tả ngoại quan",
+                title: "Màu sắc & hình thái lá trà",
+                icon: <ImageTool size={20} />,
+                value: visual,
+                setValue: setVisual,
+              },
+              {
+                id: "aroma",
+                label: "Hương thơm",
+                title: "Tầng hương chủ đạo",
+                icon: <Sparkles size={20} />,
+                value: aroma,
+                setValue: setAroma,
+              },
+              {
+                id: "tasteProfile",
+                label: "Taste profile",
+                title: "Hậu vị & độ chát/ngọt",
+                icon: <Tag size={20} />,
+                value: tasteProfile,
+                setValue: setTasteProfile,
               },
             ].map((section) => (
               <section
@@ -442,7 +630,6 @@ export function AddProductPage() {
           </div>
         </div>
 
-        {/* Right Column - Images (5/12) */}
         <div className="lg:col-span-5">
           <div className="space-y-8">
             <section className="bg-white p-8 rounded-[2.5rem] border border-primary/5 shadow-sm">
@@ -456,7 +643,6 @@ export function AddProductPage() {
               </div>
 
               <div className="space-y-6">
-                {/* Main Image */}
                 <label className="block">
                   <input
                     type="file"
@@ -487,7 +673,6 @@ export function AddProductPage() {
                   </div>
                 </label>
 
-                {/* Small Images Grid */}
                 <div>
                   <label className="block text-[10px] font-bold text-secondary/40 uppercase mb-2 ml-1">
                     Ảnh phụ (tối đa 4 ảnh tuỳ ý)
@@ -535,7 +720,6 @@ export function AddProductPage() {
               </div>
             </section>
 
-            {/* Quick Preview Card */}
             <section className="bg-primary p-8 rounded-[2.5rem] text-white shadow-xl shadow-primary/20">
               <h4 className="text-lg font-bold mb-4">Mẹo nhỏ</h4>
               <p className="text-sm opacity-80 leading-relaxed mb-6">

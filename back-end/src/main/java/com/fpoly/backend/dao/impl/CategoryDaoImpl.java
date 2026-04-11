@@ -94,4 +94,24 @@ public class CategoryDaoImpl implements CategoryDao {
         entityManager.remove(managed);
         entityManager.flush();
     }
+
+    @Override
+    public Category findByNameIgnoreCase(String name) {
+        String jpql = """
+            SELECT c
+            FROM Category c
+            WHERE LOWER(TRIM(c.name)) = LOWER(TRIM(:name))
+        """;
+        List<Category> results = entityManager.createQuery(jpql, Category.class)
+                .setParameter("name", name)
+                .setMaxResults(1)
+                .getResultList();
+        return results.isEmpty() ? null : results.get(0);
+    }
+
+    @Override
+    public List<Category> findAll() {
+        String jpql = "SELECT c FROM Category c";
+        return entityManager.createQuery(jpql, Category.class).getResultList();
+    }
 }

@@ -10,6 +10,10 @@ public interface CategoryDao {
 
     Category findById(Long id);
 
+    Category findByNameIgnoreCase(String name);
+
+    List<Category> findAll();
+
     List<Category> findAllOrderByCreatedAtDesc();
 
     boolean existsByNameIgnoreCase(String name, Long excludeId);
