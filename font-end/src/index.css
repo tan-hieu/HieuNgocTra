@@ -1,137 +1,110 @@
-@import url("https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500&family=Montserrat:wght@300;400;500;600;700&family=Manrope:wght@400;500;600;700;800&family=Playfair+Display:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500&display=swap");
 
 :root {
+  /* =========================================================
+     MÀU SẮC DÀNH CHO ADMIN THEME - KHÔNG ĐỔI
+  ========================================================== */
+  --admin-bg: #faf8f5;
+  --admin-surface: #ffffff;
+  --admin-surface-soft: #f1eee9;
+  --admin-border: #e8e3dd;
+
+  --admin-text: #2b332c;
+  --admin-muted: #6b756d;
+
+  --admin-primary: #2c4c3b;
+  --admin-primary-hover: #1e3629;
+  --admin-primary-soft: #e6ede9;
+  --admin-accent: #c5a880;
+
+  --admin-success: #276749;
+  --admin-warning: #b7791f;
+  --admin-danger: #9b2c2c;
+}
+
+/* =========================================================
+   [USER THEME] - CẢM HỨNG TỪ TWG TEA CANADA, VAHDAM INDIA
+========================================================== */
+body {
+  margin: 0;
+  min-width: 320px;
+  min-height: 100vh;
+  /* Mặc định xài Montserrat cho văn bản, làm các form, chữ nhỏ cực kỳ đứng form và thanh lịch */
   font-family:
-    "Manrope",
+    "Montserrat",
     system-ui,
     -apple-system,
-    "Segoe UI",
     sans-serif;
-  line-height: 1.5;
-  font-weight: 500;
-
-  /* Tắt dark scheme mặc định để không đè admin */
-  color-scheme: light;
-  color: #1f2b24;
-  background-color: #f4f1ea;
+  line-height: 1.6;
+  font-weight: 400;
+  letter-spacing: 0.01em;
 
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-
-  /* Admin design tokens */
-  --admin-bg: #f4f1ea;
-  --admin-surface: #fefdf9;
-  --admin-surface-soft: #f8f5ee;
-  --admin-border: #ded8ca;
-  --admin-text: #1f2b24;
-  --admin-muted: #5e6b62;
-  --admin-primary: #1f4d3a;
-  --admin-primary-hover: #173b2d;
-  --admin-primary-soft: #e3eee8;
-  --admin-success: #0f766e;
-  --admin-warning: #a16207;
-  --admin-danger: #b91c1c;
 }
 
-a {
+/* Tiêu đề cấp bậc (H1->H6) dành riêng cho User -> Sang trọng, cổ điển */
+body:not(.admin-theme) h1,
+body:not(.admin-theme) h2,
+body:not(.admin-theme) h3,
+body:not(.admin-theme) h4,
+body:not(.admin-theme) h5,
+body:not(.admin-theme) h6 {
+  font-family: "Cormorant Garamond", "Times New Roman", serif;
   font-weight: 600;
-  color: inherit;
-  text-decoration: none;
+  letter-spacing: 0.02em;
+  margin-top: 0;
 }
 
-a:hover {
-  color: var(--admin-primary);
-}
-
-body {
-  margin: 0;
-  min-width: 320px;
-  min-height: 100vh;
-  font-family:
-    "Manrope",
-    system-ui,
-    -apple-system,
-    "Segoe UI",
-    sans-serif;
-  background-color: #f4f1ea;
-  color: var(--admin-text);
-}
-
-/* Giữ user pages nếu cần serif riêng */
-h1,
-h2,
-h3,
-h4,
-h5,
-h6 {
-  font-family:
-    "Manrope",
-    system-ui,
-    -apple-system,
-    "Segoe UI",
-    sans-serif;
-  letter-spacing: -0.01em;
-}
-
-/* Hỗ trợ line clamp */
-.line-clamp-1,
-.line-clamp-2 {
-  display: -webkit-box;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
-}
-.line-clamp-1 {
-  -webkit-line-clamp: 1;
-}
-.line-clamp-2 {
-  -webkit-line-clamp: 2;
-}
-
-/* ADMIN GLOBAL THEME */
-.admin-theme,
-.admin-theme * {
-  font-family:
-    "Manrope",
-    system-ui,
-    -apple-system,
-    "Segoe UI",
-    sans-serif;
-  letter-spacing: 0;
-}
-
+/* =========================================================
+   [ADMIN THEME] ÁP CHẾ GHI ĐÈ BẢO VỆ PHÔNG CŨ DÀNH RIÊNG QUẢN TRỊ
+   [KHÔNG BỊ ẢNH HƯỞNG BỞI USER THEME BÊN TRÊN]
+========================================================== */
 .admin-theme {
-  background: var(--admin-bg);
-  color: var(--admin-text);
-}
-
-.admin-theme .font-serif {
+  background: var(--admin-bg) !important;
+  color: var(--admin-text) !important;
+  /* Bắt buộc dùng lại Manrope (của Admin hiện tại) */
   font-family:
     "Manrope",
     system-ui,
     -apple-system,
-    "Segoe UI",
     sans-serif !important;
-  letter-spacing: -0.01em !important;
+  letter-spacing: 0 !important;
 }
 
-.admin-theme .tracking-widest,
-.admin-theme .uppercase {
-  letter-spacing: 0.04em !important;
+.admin-theme .font-serif,
+.admin-theme h1,
+.admin-theme h2,
+.admin-theme h3,
+.admin-theme h4,
+.admin-theme h5,
+.admin-theme h6 {
+  /* Bắt buộc dùng Playfair Display cho heading của Admin */
+  font-family: "Playfair Display", serif !important;
+  font-weight: 600 !important;
+  letter-spacing: 0.01em !important;
+  color: var(--admin-primary) !important;
 }
 
 .admin-theme input,
 .admin-theme select,
 .admin-theme textarea {
-  background: #fbfaf7;
-  border: 1px solid var(--admin-border);
-  color: var(--admin-text);
+  font-family: "Manrope", sans-serif !important;
+}
+
+.admin-theme input:focus,
+.admin-theme select:focus,
+.admin-theme textarea:focus {
+  outline: none;
+  border-color: var(--admin-accent);
+  box-shadow: 0 0 0 3px rgba(197, 168, 128, 0.15);
 }
 
 .admin-theme input::placeholder,
 .admin-theme textarea::placeholder {
-  color: #8a948d;
+  color: #a3a39a;
 }
 
 .admin-theme .bg-white {
@@ -154,13 +127,15 @@ h6 {
 
 .admin-theme .border-primary-container\/30,
 .admin-theme .border-secondary\/5,
-.admin-theme .border-secondary\/10 {
+.admin-theme .border-secondary\/10,
+.admin-theme .border-gray-200 {
   border-color: var(--admin-border) !important;
 }
 
 .admin-theme .text-secondary\/60,
 .admin-theme .text-secondary\/50,
 .admin-theme .text-secondary\/40,
+.admin-theme .text-gray-500,
 .admin-theme .text-on-surface-variant\/60,
 .admin-theme .text-on-surface-variant\/40 {
   color: var(--admin-muted) !important;
@@ -170,5 +145,43 @@ h6 {
 .admin-theme .shadow-md,
 .admin-theme .shadow-lg,
 .admin-theme .shadow-xl {
-  box-shadow: 0 8px 24px rgba(26, 42, 33, 0.08) !important;
+  box-shadow: 0 8px 30px rgba(44, 76, 59, 0.06) !important;
+}
+
+.admin-theme button,
+.admin-theme a,
+.admin-theme input,
+.admin-theme select,
+.admin-theme textarea {
+  transition: all 0.2s ease;
+}
+
+.admin-theme button.bg-primary {
+  border: 1px solid var(--admin-primary);
+}
+.admin-theme button.bg-primary:hover {
+  border-color: var(--admin-primary-hover);
+  box-shadow: 0 4px 12px rgba(44, 76, 59, 0.2);
+}
+
+.admin-theme .admin-dropdown-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(44, 76, 59, 0.45) transparent;
+}
+
+.admin-theme .admin-dropdown-scroll::-webkit-scrollbar {
+  width: 8px;
+}
+
+.admin-theme .admin-dropdown-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.admin-theme .admin-dropdown-scroll::-webkit-scrollbar-thumb {
+  background: rgba(44, 76, 59, 0.35);
+  border-radius: 9999px;
+}
+
+.admin-theme .admin-dropdown-scroll::-webkit-scrollbar-thumb:hover {
+  background: rgba(44, 76, 59, 0.55);
 }

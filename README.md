@@ -44,5 +44,7 @@ npm run dev
 
 ## Cách chạy backend
 
+```bash
 cd back-end
 mvnw spring-boot:run
+```

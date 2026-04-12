@@ -5,32 +5,44 @@
     <link rel="icon" type="image/svg+xml" href="/android-icon-72x72.png" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Hiếu Ngọc Trà</title>
+
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+
+    <!-- [USER THEME] Phông chữ Hoàng gia (Cormorant Garamond) + Hiện đại (Montserrat) -->
     <link
-      href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,500;0,600;0,700;1,400&family=Playfair+Display:ital,wght@0,400;0,500;0,600;0,700;0,800;0,900;1,400&display=swap"
+      href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400;1,500;1,600&family=Montserrat:ital,wght@0,300;0,400;0,500;0,600;0,700;1,300;1,400;1,500&display=swap"
       rel="stylesheet"
     />
+
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
       tailwind.config = {
         theme: {
           extend: {
             colors: {
-              primary: "#2D402E",
-              "primary-dark": "#1D291E",
-              accent: "#6B4428",
-              gold: "#B38B4D",
-              "background-light": "#F2EBDC",
-              "background-dark": "#0F1510",
-              "tea-dark": "#2D402E",
-              "tea-green": "#9AC17C",
-              "tea-gold": "#C7A25A",
-              "tea-bg": "#F7F1E6",
+              primary: "#1f4d3a",
+              "primary-dark": "#173b2d",
+              accent: "#8b6a3f",
+              gold: "#b38b4d",
+              "background-light": "#f4f1ea",
+              "background-dark": "#111513",
+              "tea-dark": "#1f4d3a",
+              "tea-green": "#9cbf9a",
+              "tea-gold": "#c2a56f",
+              "tea-bg": "#f8f5ee",
             },
             fontFamily: {
-              display: ["Playfair Display", "serif"],
-              body: ["Lora", "serif"],
+              /* Dùng class font-display cho Tên trà, banner, tiêu đề lớn */
+              display: ["'Cormorant Garamond'", "serif"],
+              /* Dùng class font-body hoặc font-sans cho Giá, giỏ hàng, thông tin */
+              body: ["'Montserrat'", "system-ui", "sans-serif"],
+              sans: ["'Montserrat'", "sans-serif"],
+              serif: ["'Cormorant Garamond'", "serif"],
+            },
+            boxShadow: {
+              soft: "0 8px 24px rgba(22, 42, 33, 0.08)",
+              card: "0 10px 28px rgba(22, 42, 33, 0.10)",
             },
           },
         },

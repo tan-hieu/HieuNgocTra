@@ -483,7 +483,7 @@ export function ProductsPage() {
         </div>
         <RouterLink
           to="/admin/products/add"
-          className="bg-primary text-white px-6 py-3 rounded-xl font-serif font-bold flex items-center gap-2 shadow-lg shadow-primary/20 hover:scale-105 transition-transform"
+          className="bg-primary text-white px-6 py-3 rounded-xl font-bold flex items-center gap-2 shadow-lg shadow-primary/20 hover:scale-105 transition-transform"
         >
           <Plus size={20} />
           Thêm sản phẩm mới

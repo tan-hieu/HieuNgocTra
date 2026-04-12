@@ -262,7 +262,7 @@ export function OriginsPage() {
   }, [notice]);
 
   return (
-    <div className="pb-24 min-h-screen bg-[#F9F8F3] -mx-4 md:-mx-8 px-4 md:px-8 pt-8">
+    <div className="pb-12">
       {notice && (
         <motion.div
           className="fixed top-5 right-5 z-[120]"

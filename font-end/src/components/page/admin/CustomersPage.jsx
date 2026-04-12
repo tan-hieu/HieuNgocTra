@@ -240,7 +240,7 @@ export function CustomersPage() {
   };
 
   return (
-    <div className="admin-font pb-24 min-h-screen bg-[#F9F8F3] -mx-4 md:-mx-8 px-4 md:px-8 pt-8 relative">
+    <div className="pb-12 relative">
       {notice && (
         <motion.div
           className="fixed top-5 right-5 z-[120]"

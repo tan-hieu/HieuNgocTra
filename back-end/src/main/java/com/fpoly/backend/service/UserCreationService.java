@@ -1,7 +1,8 @@
 package com.fpoly.backend.service;
 
+import java.util.UUID;
+
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
@@ -48,19 +49,16 @@ public class UserCreationService {
         u.setRole(role);
         u.setPasswordHash(passwordHash);
 
-        // Lưu số điện thoại đúng từ Google nếu có, không random.
-        // Nếu Google không trả về thì để null.
-        u.setPhone(normalizePhone(phone));
+        String normalizedPhone = normalizePhone(phone);
 
-        try {
-            return userRepository.saveAndFlush(u);
-        } catch (DataIntegrityViolationException ex) {
-            User existingAfterFail = userRepository.findByEmail(email).orElse(null);
-            if (existingAfterFail != null) {
-                return existingAfterFail;
-            }
-            throw ex;
+        // SQL Server + UNIQUE(phone): chỉ 1 giá trị NULL => Google user tiếp theo dễ lỗi.
+        // Nếu Google không trả phone, tạo placeholder duy nhất để tránh đụng UNIQUE.
+        if (normalizedPhone == null) {
+            normalizedPhone = generateUniqueGooglePhonePlaceholder();
         }
+        u.setPhone(normalizedPhone);
+
+        return userRepository.saveAndFlush(u);
     }
 
     @Transactional(propagation = Propagation.REQUIRES_NEW, readOnly = true)
@@ -73,17 +71,24 @@ public class UserCreationService {
         String p = input.trim();
         if (p.isEmpty()) return null;
 
-        // Giữ số và dấu + đầu số quốc tế
         p = p.replaceAll("[^0-9+]", "");
         if (p.startsWith("++")) {
             p = p.substring(1);
         }
 
-        // Cột phone NVARCHAR(20)
         if (p.length() > 20) {
             p = p.substring(0, 20);
         }
 
         return p.isBlank() ? null : p;
+    }
+
+    private String generateUniqueGooglePhonePlaceholder() {
+        String candidate;
+        do {
+            // Độ dài tối đa 20 ký tự
+            candidate = "GG" + UUID.randomUUID().toString().replace("-", "").substring(0, 18);
+        } while (userRepository.existsByPhone(candidate));
+        return candidate;
     }
 }

@@ -5,16 +5,9 @@ import {
   Image as ImageIcon,
   Plus,
   X,
-  Bold,
-  Italic,
-  Underline,
-  List,
-  ListOrdered,
   Link as LinkIcon,
   Image as ImageTool,
   Info,
-  FileText,
-  DollarSign,
   Tag,
   Quote,
   BookOpen,
@@ -28,10 +21,11 @@ import {
 } from "lucide-react";
 import { Link as RouterLink, useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "motion/react";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
-const ORIGINS_API = "http://localhost:8080/api/admin/origins";
-const CATEGORIES_API = "http://localhost:8080/api/admin/categories";
+const ORIGINS_API = "/api/admin/origins";
+const CATEGORIES_API = "/api/admin/categories";
+const AI_SUGGEST_API = "/api/admin/ai/products/suggest";
 
 function normalizeApiStatus(status) {
   return String(status || "").toUpperCase();
@@ -151,16 +145,109 @@ export function AddProductPage() {
   }, []);
 
   const generateAIContent = async (section) => {
+    const token = localStorage.getItem("token");
+    if (!token) {
+      showNotice(
+        "error",
+        "Chưa đăng nhập",
+        "Bạn cần đăng nhập admin để dùng AI.",
+      );
+      return;
+    }
+
+    const teaName = String(productName || "").trim();
+    if (!teaName) {
+      showNotice("error", "Thiếu tên trà", "Vui lòng nhập Tên sản phẩm trước.");
+      return;
+    }
+
+    const writableSections = [
+      "shortDesc",
+      "story",
+      "taste",
+      "brewing",
+      "storage",
+      "visual",
+      "aroma",
+      "tasteProfile",
+    ];
+
+    const sectionSetters = {
+      shortDesc: setShortDesc,
+      story: setStory,
+      taste: setTaste,
+      brewing: setBrewing,
+      storage: setStorage,
+      visual: setVisual,
+      aroma: setAroma,
+      tasteProfile: setTasteProfile,
+    };
+
+    if (section !== "all" && !writableSections.includes(section)) {
+      showNotice("error", "Sai section", "Section không hợp lệ cho AI.");
+      return;
+    }
+
+    // Chi gui section + ten tra
+    const buildPayload = (sectionId) => ({
+      section: sectionId,
+      productName: String(productName || "").trim(),
+    });
+
+    const requestOne = async (sectionId) => {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 15000);
+
+      try {
+        const res = await fetch(AI_SUGGEST_API, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: "Bearer " + token,
+          },
+          body: JSON.stringify(buildPayload(sectionId)),
+          signal: controller.signal,
+        });
+
+        const data = await res.json().catch(() => null);
+
+        if (!res.ok) {
+          const detail = data?.details ? " - " + data.details : "";
+          throw new Error((data?.message || "AI request thất bại") + detail);
+        }
+
+        const text = String(data?.text || "").trim();
+        if (!text) throw new Error("AI trả về nội dung rỗng");
+
+        const apply = sectionSetters[sectionId];
+        if (apply) apply(text);
+      } catch (e) {
+        if (e?.name === "AbortError") {
+          throw new Error("AI timeout 15s, backend phản hồi quá chậm.");
+        }
+        if (e instanceof TypeError) {
+          throw new Error("Không kết nối được backend AI (network/proxy).");
+        }
+        throw e;
+      } finally {
+        clearTimeout(timeoutId);
+      }
+    };
+
     setIsGenerating(section);
     try {
-      showNotice(
-        "info",
-        "Thông báo",
-        "Tính năng AI sẽ được kết nối qua backend sau.",
-      );
+      if (section === "all") {
+        for (const s of writableSections) {
+          await requestOne(s);
+        }
+        showNotice("success", "Hoàn tất", "AI đã soạn đủ 8 ô mô tả.");
+      } else {
+        await requestOne(section);
+        showNotice("success", "Hoàn tất", "AI đã viết đúng ô bạn vừa bấm.");
+      }
     } catch (error) {
-      console.error("AI Generation Error (stub):", error);
-      showNotice("error", "Lỗi AI", "Có lỗi xảy ra. Vui lòng thử lại sau.");
+      console.error("AI Generation Error:", error);
+      showNotice("error", "Lỗi AI", error?.message || "Có lỗi xảy ra.");
     } finally {
       setIsGenerating(null);
     }
@@ -268,7 +355,10 @@ export function AddProductPage() {
   const getMissingFields = () => {
     const missing = [];
 
-    if (!productName.trim()) missing.push("Tên sản phẩm");
+    if (!productName || !productName.trim()) {
+      missing.push("Tên sản phẩm");
+    }
+
     if (!origin.trim()) missing.push("Xuất xứ");
     if (!category.trim()) missing.push("Danh mục");
     if (!weight.toString().trim()) missing.push("Trọng lượng");
@@ -284,12 +374,52 @@ export function AddProductPage() {
     if (!aroma.trim()) missing.push("Hương thơm");
     if (!tasteProfile.trim()) missing.push("Taste profile");
 
-    // Ảnh đại diện bắt buộc
     if (!mainImage) missing.push("Ảnh đại diện");
 
-    // Ảnh phụ là tùy chọn (0-4 ảnh)
     return missing;
   };
+
+  const [isOriginOpen, setIsOriginOpen] = useState(false);
+  const [isCategoryOpen, setIsCategoryOpen] = useState(false);
+
+  const originRef = useRef(null);
+  const categoryRef = useRef(null);
+
+  const selectedOriginLabel =
+    originOptions.find(function (o) {
+      return o.value === origin;
+    })?.label || "Chọn xuất xứ";
+
+  const selectedCategoryLabel =
+    categoryOptions.find(function (c) {
+      return c.value === category;
+    })?.label || "Chọn danh mục";
+
+  useEffect(function () {
+    function handleOutsideClick(event) {
+      if (originRef.current && !originRef.current.contains(event.target)) {
+        setIsOriginOpen(false);
+      }
+      if (categoryRef.current && !categoryRef.current.contains(event.target)) {
+        setIsCategoryOpen(false);
+      }
+    }
+
+    function handleEsc(event) {
+      if (event.key === "Escape") {
+        setIsOriginOpen(false);
+        setIsCategoryOpen(false);
+      }
+    }
+
+    document.addEventListener("mousedown", handleOutsideClick);
+    document.addEventListener("keydown", handleEsc);
+
+    return function () {
+      document.removeEventListener("mousedown", handleOutsideClick);
+      document.removeEventListener("keydown", handleEsc);
+    };
+  }, []);
 
   return (
     <div className="admin-font max-w-7xl mx-auto pb-24 px-4">
@@ -345,7 +475,7 @@ export function AddProductPage() {
         <div>
           <div className="flex items-center gap-2 text-[10px] font-bold text-secondary/40 uppercase mb-2">
             <RouterLink
-              to="/products"
+              to="/admin/products"
               className="hover:text-primary transition-colors"
             >
               Sản phẩm
@@ -413,56 +543,152 @@ export function AddProductPage() {
                 <label className="block text-[10px] font-bold text-secondary/40 uppercase mb-2 ml-1">
                   Xuất xứ
                 </label>
-                <div className="relative">
-                  <select
-                    value={origin}
-                    onChange={(e) => setOrigin(e.target.value)}
+
+                <div ref={originRef} className="relative">
+                  <button
+                    type="button"
+                    onClick={function () {
+                      if (isLoadingOptions || originOptions.length === 0)
+                        return;
+                      setIsOriginOpen(!isOriginOpen);
+                      setIsCategoryOpen(false);
+                    }}
+                    className={
+                      "w-full px-6 py-4 rounded-2xl border-2 transition-all font-medium text-left flex items-center justify-between outline-none " +
+                      (isOriginOpen
+                        ? "border-primary/30 bg-white"
+                        : "border-transparent bg-surface-container-low/40")
+                    }
                     disabled={isLoadingOptions || originOptions.length === 0}
-                    className="w-full px-6 py-4 bg-surface-container-low/40 rounded-2xl border-2 border-transparent focus:border-primary/20 focus:bg-white transition-all font-medium appearance-none cursor-pointer text-secondary outline-none disabled:opacity-60"
                   >
-                    {isLoadingOptions && <option>Đang tải xuất xứ...</option>}
-                    {!isLoadingOptions && originOptions.length === 0 && (
-                      <option>Không có xuất xứ khả dụng</option>
+                    <span className="truncate text-secondary">
+                      {isLoadingOptions
+                        ? "Đang tải xuất xứ..."
+                        : originOptions.length === 0
+                          ? "Không có xuất xứ khả dụng"
+                          : selectedOriginLabel}
+                    </span>
+                    <ChevronRight
+                      size={14}
+                      className={
+                        "shrink-0 text-secondary/40 transition-transform " +
+                        (isOriginOpen ? "rotate-[270deg]" : "rotate-90")
+                      }
+                    />
+                  </button>
+
+                  <AnimatePresence>
+                    {isOriginOpen && (
+                      <motion.ul
+                        initial={{ opacity: 0, y: 6, scale: 0.98 }}
+                        animate={{ opacity: 1, y: 0, scale: 1 }}
+                        exit={{ opacity: 0, y: 4, scale: 0.98 }}
+                        transition={{ duration: 0.16 }}
+                        className="admin-dropdown-scroll absolute z-[130] mt-2 w-full max-h-64 overflow-y-auto rounded-2xl border border-primary/15 bg-white shadow-xl"
+                      >
+                        {originOptions.map(function (o) {
+                          const active = o.value === origin;
+                          return (
+                            <li key={o.id}>
+                              <button
+                                type="button"
+                                onClick={function () {
+                                  setOrigin(o.value);
+                                  setIsOriginOpen(false);
+                                }}
+                                className={
+                                  "w-full px-4 py-3 text-left text-sm transition-colors " +
+                                  (active
+                                    ? "bg-primary text-white"
+                                    : "text-secondary hover:bg-primary/10")
+                                }
+                              >
+                                <span className="block truncate">
+                                  {o.label}
+                                </span>
+                              </button>
+                            </li>
+                          );
+                        })}
+                      </motion.ul>
                     )}
-                    {!isLoadingOptions &&
-                      originOptions.map((o) => (
-                        <option key={o.id} value={o.value}>
-                          {o.label}
-                        </option>
-                      ))}
-                  </select>
-                  <ChevronRight
-                    size={14}
-                    className="absolute right-5 top-1/2 -translate-y-1/2 rotate-90 text-secondary/30 pointer-events-none"
-                  />
+                  </AnimatePresence>
                 </div>
               </div>
               <div>
                 <label className="block text-[10px] font-bold text-secondary/40 uppercase mb-2 ml-1">
                   Danh mục
                 </label>
-                <div className="relative">
-                  <select
-                    value={category}
-                    onChange={(e) => setCategory(e.target.value)}
+
+                <div ref={categoryRef} className="relative">
+                  <button
+                    type="button"
+                    onClick={function () {
+                      if (isLoadingOptions || categoryOptions.length === 0)
+                        return;
+                      setIsCategoryOpen(!isCategoryOpen);
+                      setIsOriginOpen(false);
+                    }}
+                    className={
+                      "w-full px-6 py-4 rounded-2xl border-2 transition-all font-medium text-left flex items-center justify-between outline-none " +
+                      (isCategoryOpen
+                        ? "border-primary/30 bg-white"
+                        : "border-transparent bg-surface-container-low/40")
+                    }
                     disabled={isLoadingOptions || categoryOptions.length === 0}
-                    className="w-full px-6 py-4 bg-surface-container-low/40 rounded-2xl border-2 border-transparent focus:border-primary/20 focus:bg-white transition-all font-medium appearance-none cursor-pointer text-secondary outline-none disabled:opacity-60"
                   >
-                    {isLoadingOptions && <option>Đang tải danh mục...</option>}
-                    {!isLoadingOptions && categoryOptions.length === 0 && (
-                      <option>Không có danh mục khả dụng</option>
+                    <span className="truncate text-secondary">
+                      {isLoadingOptions
+                        ? "Đang tải danh mục..."
+                        : categoryOptions.length === 0
+                          ? "Không có danh mục khả dụng"
+                          : selectedCategoryLabel}
+                    </span>
+                    <ChevronRight
+                      size={14}
+                      className={
+                        "shrink-0 text-secondary/40 transition-transform " +
+                        (isCategoryOpen ? "rotate-[270deg]" : "rotate-90")
+                      }
+                    />
+                  </button>
+
+                  <AnimatePresence>
+                    {isCategoryOpen && (
+                      <motion.ul
+                        initial={{ opacity: 0, y: 6, scale: 0.98 }}
+                        animate={{ opacity: 1, y: 0, scale: 1 }}
+                        exit={{ opacity: 0, y: 4, scale: 0.98 }}
+                        transition={{ duration: 0.16 }}
+                        className="admin-dropdown-scroll absolute z-[130] mt-2 w-full max-h-64 overflow-y-auto rounded-2xl border border-primary/15 bg-white shadow-xl"
+                      >
+                        {categoryOptions.map(function (c) {
+                          const active = c.value === category;
+                          return (
+                            <li key={c.id}>
+                              <button
+                                type="button"
+                                onClick={function () {
+                                  setCategory(c.value);
+                                  setIsCategoryOpen(false);
+                                }}
+                                className={
+                                  "w-full px-4 py-3 text-left text-sm transition-colors " +
+                                  (active
+                                    ? "bg-primary text-white"
+                                    : "text-secondary hover:bg-primary/10")
+                                }
+                              >
+                                <span className="block truncate">
+                                  {c.label}
+                                </span>
+                              </button>
+                            </li>
+                          );
+                        })}
+                      </motion.ul>
                     )}
-                    {!isLoadingOptions &&
-                      categoryOptions.map((c) => (
-                        <option key={c.id} value={c.value}>
-                          {c.label}
-                        </option>
-                      ))}
-                  </select>
-                  <ChevronRight
-                    size={14}
-                    className="absolute right-5 top-1/2 -translate-y-1/2 rotate-90 text-secondary/30 pointer-events-none"
-                  />
+                  </AnimatePresence>
                 </div>
               </div>
               <div>
@@ -558,7 +784,7 @@ export function AddProductPage() {
               },
               {
                 id: "visual",
-                label: "Mô tả ngoại quan",
+                label: "Cảm quan",
                 title: "Màu sắc & hình thái lá trà",
                 icon: <ImageTool size={20} />,
                 value: visual,
@@ -574,8 +800,8 @@ export function AddProductPage() {
               },
               {
                 id: "tasteProfile",
-                label: "Taste profile",
-                title: "Hậu vị & độ chát/ngọt",
+                label: "Vị trà",
+                title: "Hương vị đặc trưng",
                 icon: <Tag size={20} />,
                 value: tasteProfile,
                 setValue: setTasteProfile,

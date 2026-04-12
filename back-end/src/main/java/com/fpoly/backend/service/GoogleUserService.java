@@ -75,7 +75,7 @@ public class GoogleUserService {
                 System.out.println("[GOOGLE] ✓ User created successfully: ID=" + user.getId() + ", email=" + user.getEmail() + ", status=" + user.getStatus());
             } catch (DataIntegrityViolationException ex) {
                 System.err.println("[GOOGLE] ✗ DataIntegrityViolation: " + ex.getMessage());
-                User existing = userRepository.findByEmail(email).orElse(null);
+                User existing = userCreationService.findUserByEmail(email);
                 if (existing != null) {
                     System.out.println("[GOOGLE] Returning existing user created by concurrent request: " + existing.getId());
                     return existing;

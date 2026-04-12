@@ -331,17 +331,6 @@ export function OrdersPage() {
             ),
           )}
         </div>
-        <div className="flex items-center gap-2 text-sm">
-          <span className="text-secondary/70 font-semibold">Mỗi trang</span>
-          <select
-            value={size}
-            onChange={(e) => setSize(Number(e.target.value))}
-            className="px-3 py-2 rounded-lg border border-primary/10 bg-white"
-          >
-            <option value={4}>4</option>
-            <option value={5}>5</option>
-          </select>
-        </div>
       </div>
 
       <div className="bg-white rounded-[2.5rem] border border-primary/5 shadow-sm overflow-hidden mb-10">
