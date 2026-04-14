@@ -51,7 +51,6 @@ CREATE TABLE categories (
     updated_at DATETIME2 NOT NULL DEFAULT SYSDATETIME()
 );
 GO
-
 -- =========================
 -- 4. BẢNG SẢN PHẨM TRÀ
 -- =========================
@@ -69,7 +68,7 @@ CREATE TABLE products (
     stock_quantity INT NOT NULL DEFAULT 0,
     short_description NVARCHAR(500),
     description NVARCHAR(MAX),
-    flavor_notes NVARCHAR(500),
+    flavor_notes NVARCHAR(Max),
     brewing_guide NVARCHAR(MAX),
     main_image_url NVARCHAR(255),
     status NVARCHAR(20) NOT NULL DEFAULT 'ACTIVE'

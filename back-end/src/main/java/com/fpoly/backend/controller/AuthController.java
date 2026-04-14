@@ -11,9 +11,9 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.security.authentication.AuthenticationManager;
-import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.GrantedAuthority;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.oauth2.core.user.OAuth2User;
@@ -21,11 +21,10 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
-import org.springframework.security.core.authority.SimpleGrantedAuthority;
-import jakarta.servlet.http.HttpServletRequest;
 
 import com.fpoly.backend.entity.Role;
 import com.fpoly.backend.entity.User;
@@ -339,6 +338,158 @@ public class AuthController {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(Map.of("error", "Internal error"));
         }
+    }
+
+    @PutMapping("/me")
+    @Transactional
+    public ResponseEntity<?> updateMe(@RequestBody Map<String, String> body, HttpSession session) {
+        try {
+            Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+
+            if (authentication == null
+                    || !authentication.isAuthenticated()
+                    || authentication.getPrincipal() == null
+                    || "anonymousUser".equals(authentication.getPrincipal().toString())) {
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                        .body(Map.of("message", "Unauthorized"));
+            }
+
+            Object principal = authentication.getPrincipal();
+            String email = null;
+
+            if (principal instanceof org.springframework.security.core.userdetails.User userDetails) {
+                email = userDetails.getUsername();
+            } else if (principal instanceof OAuth2User oAuth2User) {
+                email = oAuth2User.getAttribute("email");
+            }
+
+            if (email == null || email.isBlank()) {
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                        .body(Map.of("message", "Unauthorized"));
+            }
+
+            User user = userRepository.findByEmail(email).orElse(null);
+            if (user == null) {
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                        .body(Map.of("message", "Unauthorized"));
+            }
+
+            String fullName = trimToNull(body.get("fullName"));
+            String phone = trimToNull(body.get("phone"));
+            String address = trimToNull(body.get("address"));
+            String avatarUrl = trimToNull(body.get("avatarUrl"));
+
+            if (fullName == null) {
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                        .body(Map.of("message", "Họ và tên không được để trống"));
+            }
+
+            // Chỉ check trùng khi phone mới khác phone cũ
+            if (phone != null && !phone.equals(user.getPhone()) && userRepository.existsByPhone(phone)) {
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                        .body(Map.of("message", "Số điện thoại đã được sử dụng"));
+            }
+
+            user.setFullName(fullName);
+            user.setPhone(phone);
+            user.setAddress(address);
+            user.setAvatarUrl(avatarUrl);
+
+            User saved = userRepository.save(user);
+            session.setAttribute("LOGGED_IN_USER", saved);
+
+            return ResponseEntity.ok(Map.of(
+                    "message", "Cập nhật thông tin thành công",
+                    "user", buildAuthUserResponse(saved)
+            ));
+        } catch (Exception ex) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(Map.of("message", "Có lỗi xảy ra khi cập nhật thông tin"));
+        }
+    }
+
+    @PostMapping("/change-password")
+    @Transactional
+    public ResponseEntity<?> changePassword(@RequestBody Map<String, String> body, HttpSession session) {
+        try {
+            Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+
+            if (authentication == null
+                    || !authentication.isAuthenticated()
+                    || authentication.getPrincipal() == null
+                    || "anonymousUser".equals(authentication.getPrincipal().toString())) {
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                        .body(Map.of("message", "Unauthorized"));
+            }
+
+            Object principal = authentication.getPrincipal();
+            String email = null;
+
+            if (principal instanceof org.springframework.security.core.userdetails.User userDetails) {
+                email = userDetails.getUsername();
+            } else if (principal instanceof OAuth2User oAuth2User) {
+                email = oAuth2User.getAttribute("email");
+            }
+
+            if (email == null || email.isBlank()) {
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                        .body(Map.of("message", "Unauthorized"));
+            }
+
+            User user = userRepository.findByEmail(email).orElse(null);
+            if (user == null) {
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                        .body(Map.of("message", "Unauthorized"));
+            }
+
+            String currentPassword = body.get("currentPassword");
+            String newPassword = body.get("newPassword");
+            String confirmPassword = body.get("confirmPassword");
+
+            if (currentPassword == null || currentPassword.isBlank()
+                    || newPassword == null || newPassword.isBlank()
+                    || confirmPassword == null || confirmPassword.isBlank()) {
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                        .body(Map.of("message", "Vui lòng nhập đầy đủ thông tin mật khẩu"));
+            }
+
+            if (!passwordEncoder.matches(currentPassword, user.getPasswordHash())) {
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                        .body(Map.of("message", "Mật khẩu hiện tại không chính xác"));
+            }
+
+            if (!newPassword.equals(confirmPassword)) {
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                        .body(Map.of("message", "Xác nhận mật khẩu không khớp"));
+            }
+
+            if (newPassword.length() < 8) {
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                        .body(Map.of("message", "Mật khẩu mới phải có ít nhất 8 ký tự"));
+            }
+
+            if (passwordEncoder.matches(newPassword, user.getPasswordHash())) {
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                        .body(Map.of("message", "Mật khẩu mới không được trùng mật khẩu cũ"));
+            }
+
+            user.setPasswordHash(passwordEncoder.encode(newPassword));
+            userRepository.save(user);
+
+            session.removeAttribute("LOGGED_IN_USER");
+
+            return ResponseEntity.ok(Map.of("message", "Đổi mật khẩu thành công"));
+
+        } catch (Exception ex) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(Map.of("message", "Có lỗi xảy ra khi đổi mật khẩu"));
+        }
+    }
+
+    private String trimToNull(String value) {
+        if (value == null) return null;
+        String v = value.trim();
+        return v.isEmpty() ? null : v;
     }
 
     private AuthUserResponse buildAuthUserResponse(User user) {

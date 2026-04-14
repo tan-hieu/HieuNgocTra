@@ -14,6 +14,7 @@ import Header from "./components/layout/header/Header";
 import Footer from "./components/layout/footer/Footer";
 import Home from "./components/page/user/Home";
 import AllProductsPage from "./components/page/user/AllProductsPage";
+import AllCategoriesPage from "./components/page/user/AllCategoriesPage";
 import ProductDetailPage from "./components/page/user/ProductDetailPage";
 import Login from "./components/page/user/Login";
 import Register from "./components/page/user/Register";
@@ -37,6 +38,7 @@ import { AddCategoryPage } from "./components/page/admin/AddCategoryPage";
 import { OriginsPage } from "./components/page/admin/OriginsPage";
 import { AddOriginPage } from "./components/page/admin/AddOriginPage";
 import { AddOrderPage } from "./components/page/admin/AddOrderPage";
+import AdminProfilePage from "./components/page/admin/AdminProfilePage";
 
 function RequireAuth({ isLoggedIn, children }) {
   if (!isLoggedIn) {
@@ -298,6 +300,18 @@ function App() {
             }
           />
 
+          <Route
+            path="/categories"
+            element={
+              <BlockAdminRoute
+                isAdmin={isAdmin}
+                onForceLogout={forceLogoutForGuard}
+              >
+                <AllCategoriesPage />
+              </BlockAdminRoute>
+            }
+          />
+
           {/* AUTH PAGES – luôn hiện form login, không tự redirect */}
           <Route
             path="/login"
@@ -390,14 +404,16 @@ function App() {
             {/* /admin/origins/add */}
             <Route path="origins/add" element={<AddOriginPage />} />
 
-            <Route
+            <Route path="profile" element={<AdminProfilePage />} />
+
+            {/* <Route
               path="profile"
               element={
                 <RequireAuth isLoggedIn={isLoggedIn}>
                   <Profile />
                 </RequireAuth>
               }
-            />
+            /> */}
           </Route>
         </Routes>
       </main>

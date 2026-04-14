@@ -7,7 +7,7 @@ import {
   Star,
   Calendar,
 } from "lucide-react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 // eslint-disable-next-line
 import { motion } from "motion/react";
 import { Link } from "react-router-dom";
@@ -15,6 +15,105 @@ import { addToCart } from "../../../utils/cart";
 
 export default function Home() {
   const [toast, setToast] = useState({ open: false, message: "" });
+  const [danhMucNoiBat, setDanhMucNoiBat] = useState([]);
+  const [dangTaiDanhMuc, setDangTaiDanhMuc] = useState(true);
+  const [sanPhamNoiBat, setSanPhamNoiBat] = useState([]);
+  const [dangTaiSanPham, setDangTaiSanPham] = useState(true);
+
+  useEffect(() => {
+    let daHuy = false;
+
+    async function taiDanhMucNoiBat() {
+      setDangTaiDanhMuc(true);
+      try {
+        const res = await fetch(
+          "http://localhost:8080/api/categories?limit=4",
+          {
+            headers: { Accept: "application/json" },
+          },
+        );
+
+        if (!res.ok) {
+          throw new Error(`Lỗi tải danh mục: ${res.status}`);
+        }
+
+        const data = await res.json();
+        const list = Array.isArray(data) ? data : [];
+
+        const chuanHoa = list.slice(0, 4).map((cat, index) => ({
+          id: cat.id,
+          name: cat.name || "Danh mục",
+          slug: cat.slug || "",
+          img:
+            cat.imageUrl ||
+            "https://images.unsplash.com/photo-1523920290228-4f321a939b4c?auto=format&fit=crop&w=1200&q=80",
+          lopPhu: [
+            "from-emerald-900/80",
+            "from-amber-900/80",
+            "from-slate-900/80",
+            "from-yellow-900/80",
+          ][index % 4],
+        }));
+
+        if (!daHuy) setDanhMucNoiBat(chuanHoa);
+      } catch (err) {
+        if (!daHuy) {
+          setDanhMucNoiBat([]);
+          console.error("Lỗi tải danh mục Home:", err);
+        }
+      } finally {
+        if (!daHuy) setDangTaiDanhMuc(false);
+      }
+    }
+
+    async function taiSanPhamNoiBat() {
+      setDangTaiSanPham(true);
+      try {
+        const res = await fetch("http://localhost:8080/api/products?limit=4", {
+          headers: { Accept: "application/json" },
+        });
+
+        if (!res.ok) throw new Error(`Lỗi tải sản phẩm: ${res.status}`);
+
+        const data = await res.json();
+        const list = Array.isArray(data) ? data : [];
+
+        const chuanHoa = list.map((sp) => ({
+          id: sp.id,
+          name: sp.name || "Sản phẩm trà",
+          price: Number(sp.price || 0),
+          hienThiGia: dinhDangTien(sp.price),
+          desc:
+            sp.shortDescription ||
+            `Dòng ${sp.categoryName || "trà đặc sản"} từ ${sp.origin || "Việt Nam"}.`,
+          img: sp.mainImageUrl || sp.imageUrl || ANH_SAN_PHAM_MAC_DINH,
+          origin: sp.origin || "",
+          weight: sp.weight || "",
+        }));
+
+        if (!daHuy) setSanPhamNoiBat(chuanHoa);
+      } catch (err) {
+        if (!daHuy) {
+          setSanPhamNoiBat([]);
+          console.error("Lỗi tải sản phẩm Home:", err);
+        }
+      } finally {
+        if (!daHuy) setDangTaiSanPham(false);
+      }
+    }
+
+    taiDanhMucNoiBat();
+    taiSanPhamNoiBat();
+    return () => {
+      daHuy = true;
+    };
+  }, []);
+
+  const dinhDangTien = (gia) => {
+    const so = Number(gia || 0);
+    if (!Number.isFinite(so)) return "0đ";
+    return so.toLocaleString("vi-VN") + "đ";
+  };
 
   const handleAddToCart = (e, product) => {
     e.preventDefault();
@@ -28,6 +127,9 @@ export default function Home() {
       setToast((prev) => ({ ...prev, open: false }));
     }, 2000);
   };
+
+  const ANH_SAN_PHAM_MAC_DINH =
+    "https://images.unsplash.com/photo-1597318181409-cf64d0b5d8a2?auto=format&fit=crop&w=1200&q=80";
 
   return (
     <>
@@ -105,62 +207,65 @@ export default function Home() {
               <div className="w-20 h-1 bg-gold"></div>
             </div>
             <Link
-              to="/products"
+              to="/categories"
               className="text-accent font-bold hover:underline flex items-center gap-1"
             >
               Xem tất cả
             </Link>
           </motion.div>
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-6">
-            {[
-              {
-                name: "Trà Xanh",
-                color: "primary",
-                img: "https://lh3.googleusercontent.com/aida-public/AB6AXuB20yKKyrc0mcgFCNN2qqWnNk9ewAHUmpcKSoefqt9I-epWZJt9_pIdC0j2div__Dj2bEB56q3bzubglDI0VY-iT9t5sMlOAJ64VtEom2aK016dukydEwNGhZEdwM3a3AcMixDTU_jtbwnawarAlSTIC7W4SV5sBe7Ebbdhi79o8_pWPlAE--u5gCzxd_y1GjLfeFWub6yX1BidlJBk7mhAphPsGH51hbL0shH1PO39S51eglwxiYK1uG99xoYc8cY5cceGRfchiLMC",
-              },
-              {
-                name: "Trà Ô Long",
-                color: "accent",
-                img: "https://lh3.googleusercontent.com/aida-public/AB6AXuDA-b11VkIqcnxigg2ScOurghnJlvzAff3ExVDm_PkHOKIuWG1eQnsp7bnMN7QmD8DwrJ1cn3yPrBgZXMDuWeqGQlicpPvqsP_h06h62XkLlp9uf_WpXWa82tE97wNav7seMp1XD5u3mk2PV-pfZS5-Ny3lr52VTDvrW7LknpzSS-ALOVuNyAZp9wE53KcGiZVzbAtYpZw9tua11GMbjI8ptucoanUxdioYvZL_EJ-z2sMiRvYuFkAIeLz8IuGoKpEU_9v3kWRc-YVy",
-              },
-              {
-                name: "Trà Đen",
-                color: "slate-900",
-                img: "https://lh3.googleusercontent.com/aida-public/AB6AXuApuxQ1j-LD5Ws7RnkKaMItUBxy5v2cSCzRvi5e99DnbDqeX2GUUo0fb_EMd88hDhn-0WAYRbImlBRf6UrWKTMt-sT0yhSxjP-pIBfNQpYHbZWlIg0zglFfKAKJkyhsyOQ6O7hxcoMStIyarozflrf5ic0OCFjcKpxx6WhUwxDDYAwtM-Dw4YqZUZDT4WscP0cpJaTEPr4GHFFf5eUTdklalIYV3IRI4BuZl1t_eMrgjVuL1PoalQP2FbbY34AlMOJBbNXA1M_v1AIO",
-              },
-              {
-                name: "Trà Thảo Mộc",
-                color: "gold",
-                img: "https://lh3.googleusercontent.com/aida-public/AB6AXuD2cgwAV-VOh0vopBgbF2vjSrO_cey32M1ohQFwYQwvQQSl6mZbsyujvRCJKvBBoVGEFmox1pZjC62D4HJxdlJxq0dO17UyHHr5yihWBJxUrsMS_x227vW_arTp_UfrUcDVwBaMeKt0v6TTrervwtVOjg1nmO6zS6_P-FvQMNV9EfPhV7DlCTytbe-EEg32sNRWuK0HDulzIomu2n3R-B5Qre7_YGnRd2-nW5Lvx5yx4mPlpc46qxHUx49w6n9o3KUTfE51bhu5VuI6",
-              },
-            ].map((cat, i) => (
-              <motion.div
-                key={i}
-                initial={{ opacity: 0, y: 30 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ duration: 0.5, delay: i * 0.1 }}
-                whileHover={{ y: -10 }}
-                className="group cursor-pointer"
-              >
-                <div className="relative aspect-square overflow-hidden rounded-2xl mb-4">
-                  <img
-                    src={cat.img}
-                    alt={cat.name}
-                    referrerPolicy="no-referrer"
-                    className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
-                  />
-                  <div
-                    className={`absolute inset-0 bg-gradient-to-t from-${cat.color}/80 to-transparent flex items-end p-6`}
-                  >
-                    <h3 className="text-white font-bold text-xl font-display">
-                      {cat.name}
-                    </h3>
+
+          {dangTaiDanhMuc && (
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-6">
+              {Array.from({ length: 4 }).map((_, i) => (
+                <div
+                  key={i}
+                  className="aspect-square rounded-2xl bg-slate-200 animate-pulse"
+                />
+              ))}
+            </div>
+          )}
+
+          {!dangTaiDanhMuc && danhMucNoiBat.length === 0 && (
+            <div className="rounded-2xl border border-primary/10 bg-white px-6 py-8 text-center text-slate-600">
+              Chưa có dữ liệu danh mục để hiển thị.
+            </div>
+          )}
+
+          {!dangTaiDanhMuc && danhMucNoiBat.length > 0 && (
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-6">
+              {danhMucNoiBat.map((cat, i) => (
+                <motion.div
+                  key={cat.id ?? i}
+                  initial={{ opacity: 0, y: 30 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  viewport={{ once: true }}
+                  transition={{ duration: 0.5, delay: i * 0.1 }}
+                  whileHover={{ y: -10 }}
+                  className="group cursor-pointer"
+                >
+                  <div className="relative aspect-square overflow-hidden rounded-2xl mb-4">
+                    <img
+                      src={cat.img}
+                      alt={cat.name}
+                      referrerPolicy="no-referrer"
+                      onError={(e) => {
+                        e.currentTarget.src =
+                          "https://images.unsplash.com/photo-1523920290228-4f321a939b4c?auto=format&fit=crop&w=1200&q=80";
+                      }}
+                      className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
+                    />
+                    <div
+                      className={`absolute inset-0 bg-gradient-to-t ${cat.lopPhu} to-transparent flex items-end p-6`}
+                    >
+                      <h3 className="text-white font-bold text-xl font-display">
+                        {cat.name}
+                      </h3>
+                    </div>
                   </div>
-                </div>
-              </motion.div>
-            ))}
-          </div>
+                </motion.div>
+              ))}
+            </div>
+          )}
         </div>
       </section>
 
@@ -188,80 +293,80 @@ export default function Home() {
               Xem tất cả
             </Link>
           </motion.div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-8">
-            {[
-              {
-                id: 1,
-                name: "Trà Shan Tuyết 500 Năm",
-                price: "850.000đ",
-                desc: "Thu hái từ những cây chè cổ thụ trên đỉnh núi Mù Cang Chải cao 1800m.",
-                img: "https://lh3.googleusercontent.com/aida-public/AB6AXuDIdBtWBa498CTLMjdVFGDBDpfPIk7BUMDgwqRen-2N3ji6nVG5GqSekmkG7bluYWpfzl8e6JWq_f2Nlz7ZV80m0gs6s9kRy3Tg5yv9ODv_AdSN8JXHyHdYywmecqGLE5Hm_tfdYEMtHdGaTLQoPCPjdZq0aFgVPMaHMHhjNecOBa5q7SzZtGFgazMjYYbu1DjvK939NU-nOdZHIteXotAOavhTmjrTXCkHTa3V17lRmAA660nUNE51e1QB9vhDPA8gNyPIbMsLv8Ny",
-              },
-              {
-                id: 2,
-                name: "Lục Trà Ướp Hoa Bưởi",
-                price: "420.000đ",
-                desc: "Sự kết hợp tinh tế giữa trà xanh cổ thụ và hương hoa bưởi tháng Ba.",
-                img: "https://lh3.googleusercontent.com/aida-public/AB6AXuAoo-0D2scTorD5LtA2S_JMDNyVmWUbHUoQkRK5FU73J8G0igaKWMxZl2knUE4L5qtek3zMn7TNCrjnpdSTKHZq9puEUR_-yFqYZxg4TN9ArdKZSgyA3nYF_Ifmv4ESQLWTOHeUd6sJ3Ont7FSm61_jHymAL5ZvpCszopLHNVkO5tiDDQjF3udzuTzWwLqASJEQSi0xhf9jfuOHS6K730P9s-swSrti9fBnS-9O2n5XYbeHB8U3ieGvxVwmMRhz_ps0H6EslSzIYJIt",
-              },
-              {
-                id: 3,
-                name: "Bạch Trà Ngậm Sương",
-                price: "1.250.000đ",
-                desc: "Chỉ hái một búp duy nhất còn phủ lớp lông tơ trắng như tuyết.",
-                img: "https://lh3.googleusercontent.com/aida-public/AB6AXuAi8w7hJXR9feDBzKvnBjnpb_m16T6L-ETqKL9unwwSjGPsgVJuTTPTRr71mzAJBFxYSkZR2u0f4UZ-0G76FqlYzcMEGP3ZkjYRJsk0ASzTTx61rfSsxPRpxHdEfK37_nBl8168NCl2KVs4gs2v7kcV0994FV9OgnUVjK6zFL9yYj7xC7zKAmSz_tg9wNEYsCDAyXP4O-oF_sWiidbImQ3VAyhg6vzmzgXq68bmpj0bgZzvq3x8H4IRfsRYk0dkaNf6crS1ghb3cdVF",
-              },
-              {
-                id: 4,
-                name: "Hồng Trà Cổ Thụ",
-                price: "680.000đ",
-                desc: "Trà được lên men tự nhiên, mang hương thơm trái cây chín và vị ngọt mật ong.",
-                img: "https://lh3.googleusercontent.com/aida-public/AB6AXuApuxQ1j-LD5Ws7RnkKaMItUBxy5v2cSCzRvi5e99DnbDqeX2GUUo0fb_EMd88hDhn-0WAYRbImlBRf6UrWKTMt-sT0yhSxjP-pIBfNQpYHbZWlIg0zglFfKAKJkyhsyOQ6O7hxcoMStIyarozflrf5ic0OCFjcKpxx6WhUwxDDYAwtM-Dw4YqZUZDT4WscP0cpJaTEPr4GHFFf5eUTdklalIYV3IRI4BuZl1t_eMrgjVuL1PoalQP2FbbY34AlMOJBbNXA1M_v1AIO",
-              },
-            ].map((product, i) => (
-              <Link
-                key={product.id}
-                to={`/products/${product.id}`}
-                className="block"
-              >
-                <motion.div
-                  initial={{ opacity: 0, y: 20 }}
-                  whileInView={{ opacity: 1, y: 0 }}
-                  viewport={{ once: true }}
-                  transition={{ duration: 0.5, delay: i * 0.1 }}
-                  className="bg-white rounded-3xl overflow-hidden shadow-sm hover:shadow-xl transition-all border border-primary/5 group"
+
+          {dangTaiSanPham && (
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-8">
+              {Array.from({ length: 4 }).map((_, i) => (
+                <div
+                  key={i}
+                  className="bg-white rounded-3xl overflow-hidden border border-primary/10 shadow-sm"
                 >
-                  <div className="relative aspect-[4/5] overflow-hidden">
-                    <img
-                      src={product.img}
-                      alt={product.name}
-                      referrerPolicy="no-referrer"
-                      className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
-                    />
+                  <div className="aspect-[4/5] bg-slate-200 animate-pulse" />
+                  <div className="p-5 space-y-3">
+                    <div className="h-4 rounded bg-slate-200 animate-pulse" />
+                    <div className="h-4 rounded bg-slate-200 w-2/3 animate-pulse" />
                   </div>
-                  <div className="p-5">
-                    <h3 className="text-lg font-bold mb-2 font-display line-clamp-1">
-                      {product.name}
-                    </h3>
-                    <p className="text-slate-500 text-xs mb-4 line-clamp-2">
-                      {product.desc}
-                    </p>
-                    <div className="flex items-center justify-between">
-                      <span className="text-primary font-black text-lg">
-                        {product.price}
-                      </span>
-                      <button
-                        onClick={(e) => handleAddToCart(e, product)}
-                        className="bg-primary/5 hover:bg-primary text-primary hover:text-white p-2 rounded-xl transition-colors"
-                      >
-                        <ShoppingCart className="w-4 h-4 sm:w-5 sm:h-5" />
-                      </button>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {!dangTaiSanPham && sanPhamNoiBat.length === 0 && (
+            <div className="rounded-2xl border border-primary/10 bg-white px-6 py-8 text-center text-slate-600">
+              Chưa có sản phẩm để hiển thị.
+            </div>
+          )}
+
+          {!dangTaiSanPham && sanPhamNoiBat.length > 0 && (
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-8">
+              {sanPhamNoiBat.map((product, i) => (
+                <Link
+                  key={product.id}
+                  to={`/products/${product.id}`}
+                  className="block"
+                >
+                  <motion.div
+                    initial={{ opacity: 0, y: 20 }}
+                    whileInView={{ opacity: 1, y: 0 }}
+                    viewport={{ once: true }}
+                    transition={{ duration: 0.5, delay: i * 0.1 }}
+                    className="bg-white rounded-3xl overflow-hidden shadow-sm hover:shadow-xl transition-all border border-primary/5 group"
+                  >
+                    <div className="relative aspect-[4/5] overflow-hidden">
+                      <img
+                        src={product.img}
+                        alt={product.name}
+                        referrerPolicy="no-referrer"
+                        onError={(e) => {
+                          e.currentTarget.src = ANH_SAN_PHAM_MAC_DINH;
+                        }}
+                        className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
+                      />
                     </div>
-                  </div>
-                </motion.div>
-              </Link>
-            ))}
-          </div>
+                    <div className="p-5">
+                      <h3 className="text-lg font-bold mb-2 font-display line-clamp-1">
+                        {product.name}
+                      </h3>
+                      <p className="text-slate-500 text-xs mb-4 line-clamp-2">
+                        {product.desc}
+                      </p>
+                      <div className="flex items-center justify-between">
+                        <span className="text-primary font-black text-lg">
+                          {product.hienThiGia}
+                        </span>
+                        <button
+                          onClick={(e) => handleAddToCart(e, product)}
+                          className="bg-primary/5 hover:bg-primary text-primary hover:text-white p-2 rounded-xl transition-colors"
+                        >
+                          <ShoppingCart className="w-4 h-4 sm:w-5 sm:h-5" />
+                        </button>
+                      </div>
+                    </div>
+                  </motion.div>
+                </Link>
+              ))}
+            </div>
+          )}
         </div>
       </section>
 
